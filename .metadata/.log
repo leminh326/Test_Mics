@@ -1,0 +1,22 @@
+!SESSION 2022-11-09 00:25:14.879 -----------------------------------------------
+eclipse.buildId=Version 1.4.0
+java.version=1.8.0_252
+java.vendor=AdoptOpenJDK
+BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=en_US
+Command-line arguments:  -os win32 -ws win32 -arch x86_64
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2022-11-09 00:26:03.739
+!MESSAGE Log4j initialized with config file C:\Users\lemin\OneDrive\Desktop\projet Adrien\Test_Mics\.metadata\.log4j.xml
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2022-11-09 00:26:06.611
+!MESSAGE Started RMI Server, listening on port 41338
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 4 4 2022-11-09 00:26:07.674
+!MESSAGE com.st.stm32cube.ide.mcu.ide/META-INF/version/build_ref file not found, build reference will not be reported into properties
+
+!ENTRY org.eclipse.core.resources 4 77 2022-11-09 00:26:53.352
+!MESSAGE Invalid project description.
+!SUBENTRY 1 unknown 0 0 2022-11-09 00:26:53.352
+!MESSAGE OK
+!SUBENTRY 1 org.eclipse.core.resources 4 77 2022-11-09 00:26:53.352
+!MESSAGE C:\Users\lemin\OneDrive\Desktop\projet Adrien\Test_Mics\winky-v-0 overlaps the location of another project: 'winky-v-0'
