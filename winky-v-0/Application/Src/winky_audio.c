@@ -1,30 +1,6 @@
-/**
-******************************************************************************
-* @file    cca02m2_audio.c
-* @author  SRA - Central Labs
-* @version v1.0.0
-* @date    06-Dec-19
-* @brief   This file provides the Audio driver for the cca02m2
-*          board.
-******************************************************************************
-* @attention
-*
-* <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
-* All rights reserved.</center></h2>
-*
-* This software component is licensed by ST under BSD 3-Clause license,
-* the "License"; You may not use this file except in compliance with the
-* License. You may obtain a copy of the License at:
-*                        opensource.org/licenses/BSD-3-Clause
-*
-******************************************************************************
-*/
-
-/* Includes ------------------------------------------------------------------*/
 #include "winky_audio.h"
 #include "winky_audio_conf.h"
 #include "winky_errno.h"
-
 #include "hw_conf.h"
 
 #ifndef USE_STM32L4XX_NUCLEO
@@ -32,9 +8,6 @@
 #endif
 
 #define USE_STM32WBXX_NUCLEO
-
-/*### RECORD ###*/
-
 #define SaturaLH(N, L, H) (((N)<(L))?(L):(((N)>(H))?(H):(N)))
 
 #define DFSDM_OVER_SAMPLING(__FREQUENCY__) \
@@ -91,23 +64,9 @@
 
 #endif
 
-/**
-  * @}
-  */
 
-/** @defgroup WINKY_AUDIO_Exported_Variables WINKY_AUDIO_ Exported Variables
-  * @{
-  */
 /* Recording context */
 AUDIO_IN_Ctx_t                         AudioInCtx[AUDIO_IN_INSTANCES_NBR] = {0};
-
-/**
-  * @}
-  */
-
-/** @defgroup WINKY_AUDIO_Private_Variables WINKY_AUDIO_ Private Variables
-  * @{
-  */
 
 #define DECIMATOR_NUM_TAPS (16)
 #define DECIMATOR_BLOCK_SIZE (16U*N_MS_PER_INTERRUPT)
@@ -118,48 +77,20 @@ AUDIO_IN_Ctx_t                         AudioInCtx[AUDIO_IN_INSTANCES_NBR] = {0};
 static PDM_Filter_Handler_t  PDM_FilterHandler[4];
 static PDM_Filter_Config_t   PDM_FilterConfig[4];
 
-SAI_HandleTypeDef            hAudioInSai;
+SAI_HandleTypeDef           hAudioInSai;
 DMA_HandleTypeDef 			hAudioInSaiDmaRx;
 #define PDM_INTERNAL_BUFFER_SIZE_SAI          ((MAX_MIC_FREQ / 8) * MAX_AUDIO_IN_CHANNEL_NBR_TOTAL * N_MS_PER_INTERRUPT)
 static uint16_t SAI_InternalBuffer[PDM_INTERNAL_BUFFER_SIZE_SAI];
-
 
 /* Recording Buffer Trigger */
 static __IO uint32_t    RecBuffTrigger          = 0;
 static __IO uint32_t    RecBuffHalf             = 0;
 static __IO uint32_t    MicBuffIndex[4];
 
-/**
-  * @}
-  */
-
-/** @defgroup WINKY_AUDIO_Private_Function_Prototypes WINKY_AUDIO_ Private Function Prototypes
-  * @{
-  */
-
 
 static void SAI_MspInit(SAI_HandleTypeDef *hsai);
+extern UART_HandleTypeDef huart1;
 
-
-
-/**
-  * @}
-  */
-
-/** @defgroup WINKY_AUDIO_IN_Exported_Functions WINKY_AUDIO_IN Exported Functions
-  * @{
-  */
-
-
-/**
-* @brief  Initialize wave recording.
-* @param  Instance  AUDIO IN Instance. It can be:
-*       - 0 when I2S is used
-*       - 1 if DFSDM is used
-*       - 2 if PDM is used
-* @param  AudioInit Init structure
-* @retval BSP status
-*/
 __weak int32_t WINKY_AUDIO_IN_Init(uint32_t Instance, WINKY_AUDIO_Init_t* AudioInit)
 {
   int32_t ret =  BSP_ERROR_NONE;
@@ -301,12 +232,6 @@ __weak int32_t WINKY_AUDIO_IN_Init(uint32_t Instance, WINKY_AUDIO_Init_t* AudioI
   return ret;
 }
 
-/**
-* @brief  Deinit the audio IN peripherals.
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @retval BSP status
-*/
-
 __weak int32_t WINKY_AUDIO_IN_DeInit(uint32_t Instance)
 {
   int32_t ret = BSP_ERROR_NONE;
@@ -333,15 +258,6 @@ __weak int32_t WINKY_AUDIO_IN_DeInit(uint32_t Instance)
   return ret;
 }
 
-
-/**
-* @brief  Clock Config.
-* @param  hSai: SAI handle if required
-* @param  SampleRate: Audio frequency used to play the audio stream.
-* @note   This API is called by WINKY_AUDIO_IN_Init()
-*         Being __weak it can be overwritten by the application
-* @retval HAL_OK if no problem during execution, HAL_ERROR otherwise
-*/
 __weak HAL_StatusTypeDef MX_SAI_ClockConfig(SAI_HandleTypeDef *hSai, uint32_t PDM_rate)
 {
   UNUSED(hSai);
@@ -375,17 +291,6 @@ __weak HAL_StatusTypeDef MX_SAI_ClockConfig(SAI_HandleTypeDef *hSai, uint32_t PD
   return ret;
 }
 
-
-
-
-/**
-* @brief  Initialize the PDM library.
-* @param Instance    AUDIO IN Instance
-* @param  AudioFreq  Audio sampling frequency
-* @param  ChnlNbrIn  Number of input audio channels in the PDM buffer
-* @param  ChnlNbrOut Number of desired output audio channels in the  resulting PCM buffer
-* @retval BSP status
-*/
 __weak int32_t WINKY_AUDIO_IN_PDMToPCM_Init(uint32_t Instance, uint32_t AudioFreq, uint32_t ChnlNbrIn, uint32_t ChnlNbrOut)
 {
   int32_t ret =  BSP_ERROR_NONE;
@@ -467,15 +372,6 @@ __weak int32_t WINKY_AUDIO_IN_PDMToPCM_Init(uint32_t Instance, uint32_t AudioFre
   return ret;
 }
 
-
-
-/**
-* @brief  Converts audio format from PDM to PCM.
-* @param  Instance  AUDIO IN Instance
-* @param  PDMBuf    Pointer to PDM buffer data
-* @param  PCMBuf    Pointer to PCM buffer data
-* @retval BSP status
-*/
 __weak int32_t WINKY_AUDIO_IN_PDMToPCM(uint32_t Instance, uint16_t *PDMBuf, uint16_t *PCMBuf)
 {
   int32_t ret =  BSP_ERROR_NONE;
@@ -495,13 +391,7 @@ __weak int32_t WINKY_AUDIO_IN_PDMToPCM(uint32_t Instance, uint16_t *PDMBuf, uint
   }
   return ret;
 }
-/**
-* @brief  Start audio recording.
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @param  pbuf     Main buffer pointer for the recorded data storing
-* @param  NbrOfBytes     Size of the record buffer. Parameter not used when Instance is 0
-* @retval BSP status
-*/
+
 int32_t WINKY_AUDIO_IN_Record(uint32_t Instance, uint8_t* pBuf, uint32_t NbrOfBytes)
 {
   int32_t ret = BSP_ERROR_NONE;
@@ -537,11 +427,6 @@ int32_t WINKY_AUDIO_IN_Record(uint32_t Instance, uint8_t* pBuf, uint32_t NbrOfBy
   return ret;
 }
 
-/**
-* @brief  Stop audio recording.
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @retval BSP status
-*/
 int32_t WINKY_AUDIO_IN_Stop(uint32_t Instance)
 {
   int32_t ret;
@@ -574,11 +459,6 @@ int32_t WINKY_AUDIO_IN_Stop(uint32_t Instance)
   return ret;
 }
 
-/**
-* @brief  Pause the audio file stream.
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @retval BSP status
-*/
 int32_t WINKY_AUDIO_IN_Pause(uint32_t Instance)
 {
   int32_t ret;
@@ -610,11 +490,6 @@ int32_t WINKY_AUDIO_IN_Pause(uint32_t Instance)
   return ret;
 }
 
-/**
-* @brief  Resume the audio file stream.
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @retval BSP status
-*/
 int32_t WINKY_AUDIO_IN_Resume(uint32_t Instance)
 {
   int32_t ret;
@@ -645,14 +520,6 @@ int32_t WINKY_AUDIO_IN_Resume(uint32_t Instance)
   return ret;
 }
 
-
-
-/**
-* @brief  Set Audio In device
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @param  Device    The audio input device to be used
-* @retval BSP status
-*/
 int32_t WINKY_AUDIO_IN_SetDevice(uint32_t Instance, uint32_t Device)
 {
   int32_t ret = BSP_ERROR_NONE;
@@ -689,346 +556,60 @@ int32_t WINKY_AUDIO_IN_SetDevice(uint32_t Instance, uint32_t Device)
 }
 
 /**
-* @brief  Get Audio In device
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @param  Device    The audio input device used
-* @retval BSP status
-*/
-int32_t WINKY_AUDIO_IN_GetDevice(uint32_t Instance, uint32_t *Device)
-{
-  int32_t ret = BSP_ERROR_NONE;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    /* Return audio Input Device */
-    *Device = AudioInCtx[Instance].Device;
-  }
-  return ret;
-}
-
-/**
-* @brief  Set Audio In frequency
-* @param  Instance     Audio IN instance
-* @param  SampleRate  Input frequency to be set
-* @retval BSP status
-*/
-int32_t WINKY_AUDIO_IN_SetSampleRate(uint32_t Instance, uint32_t  SampleRate)
-{
-  int32_t ret = BSP_ERROR_NONE;
-  WINKY_AUDIO_Init_t audio_init;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else if(AudioInCtx[Instance].State == AUDIO_IN_STATE_STOP)
-  {
-    if(Instance == 1U)
-    {
-      ret =  BSP_ERROR_WRONG_PARAM;
-    }
-    audio_init.Device        = AudioInCtx[Instance].Device;
-    audio_init.ChannelsNbr   = AudioInCtx[Instance].ChannelsNbr;
-    audio_init.SampleRate    = SampleRate;
-    audio_init.BitsPerSample = AudioInCtx[Instance].BitsPerSample;
-    audio_init.Volume        = AudioInCtx[Instance].Volume;
-    if(WINKY_AUDIO_IN_Init(Instance, &audio_init) != BSP_ERROR_NONE)
-    {
-      ret = BSP_ERROR_NO_INIT;
-    }
-  }
-  else
-  {
-    ret = BSP_ERROR_BUSY;
-  }
-
-  /* Return BSP status */
-  return ret;
-}
-
-/**
-* @brief  Get Audio In frequency
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @param  SampleRate  Audio Input frequency to be returned
-* @retval BSP status
-*/
-int32_t WINKY_AUDIO_IN_GetSampleRate(uint32_t Instance, uint32_t *SampleRate)
-{
-  int32_t ret = BSP_ERROR_NONE;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    /* Return audio in frequency */
-    *SampleRate = AudioInCtx[Instance].SampleRate;
-  }
-
-  /* Return BSP status */
-  return ret;
-}
-
-/**
-* @brief  Set Audio In Resolution
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @param  BitsPerSample  Input resolution to be set
-* @retval BSP status
-*/
-int32_t WINKY_AUDIO_IN_SetBitsPerSample(uint32_t Instance, uint32_t BitsPerSample)
-{
-  int32_t ret = BSP_ERROR_NONE;
-  WINKY_AUDIO_Init_t audio_init;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else if(AudioInCtx[Instance].State == AUDIO_IN_STATE_STOP)
-  {
-    if(Instance == 1U)
-    {
-      ret =  BSP_ERROR_WRONG_PARAM;
-    }
-    audio_init.Device        = AudioInCtx[Instance].Device;
-    audio_init.ChannelsNbr   = AudioInCtx[Instance].ChannelsNbr;
-    audio_init.SampleRate    = AudioInCtx[Instance].SampleRate;
-    audio_init.BitsPerSample = BitsPerSample;
-    audio_init.Volume        = AudioInCtx[Instance].Volume;
-    if(WINKY_AUDIO_IN_Init(Instance, &audio_init) != BSP_ERROR_NONE)
-    {
-      ret = BSP_ERROR_NO_INIT;
-    }
-  }
-  else
-  {
-    ret = BSP_ERROR_BUSY;
-  }
-
-  /* Return BSP status */
-  return ret;
-}
-
-/**
-* @brief  Get Audio In Resolution
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @param  BitsPerSample  Input resolution to be returned
-* @retval BSP status
-*/
-int32_t WINKY_AUDIO_IN_GetBitsPerSample(uint32_t Instance, uint32_t *BitsPerSample)
-{
-  int32_t ret = BSP_ERROR_NONE;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    /* Return audio in resolution */
-    *BitsPerSample = AudioInCtx[Instance].BitsPerSample;
-  }
-  return ret;
-}
-
-/**
-* @brief  Set Audio In Channel number
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @param  ChannelNbr  Channel number to be used
-* @retval BSP status
-*/
-int32_t WINKY_AUDIO_IN_SetChannelsNbr(uint32_t Instance, uint32_t ChannelNbr)
-{
-  int32_t ret = BSP_ERROR_NONE;
-
-  if((Instance >= AUDIO_IN_INSTANCES_NBR) || (ChannelNbr > 2U))
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    /* Update AudioIn Context */
-    AudioInCtx[Instance].ChannelsNbr = ChannelNbr;
-  }
-  /* Return BSP status */
-  return ret;
-}
-
-/**
-* @brief  Get Audio In Channel number
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @param  ChannelNbr  Channel number to be used
-* @retval BSP status
-*/
-int32_t WINKY_AUDIO_IN_GetChannelsNbr(uint32_t Instance, uint32_t *ChannelNbr)
-{
-  int32_t ret = BSP_ERROR_NONE;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    /* Channel number to be returned */
-    *ChannelNbr = AudioInCtx[Instance].ChannelsNbr;
-  }
-  return ret;
-}
-
-/**
-* @brief  Set the current audio in volume level.
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @param  Volume    Volume level to be returnd
-* @retval BSP status
-*/
-int32_t WINKY_AUDIO_IN_SetVolume(uint32_t Instance, uint32_t Volume)
-{
-  int32_t ret = BSP_ERROR_NONE;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else if (Instance == 0U)
-  {
-    uint32_t index;
-    static int16_t VolumeGain[] =
-    {
-      -12,-12,-6,-3,0,2,3,5,6,7,8,9,9,10,11,11,12,12,13,13,14,14,15,15,15,
-      16,16,17,17,17,17,18,18,18,19,19,19,19,19,20,20,20,20,21,21,21,21,21,
-      22,22,22,22,22,22,23,23,23,23,23,23,23,24,24,24,24,24,24,24,25,25,25,
-      25,25,25,25,25,25,26,26,26,26,26,26,26,26,26,27,27,27,27,27,27,27,27,
-      27,27,28,28,28,28,28,28,28,28,28,28,28,28,29,29,29,29,29,29,29,29,29,
-      29,29,29,29,30,30,30,30,30,30,30,31
-    };
-    for (index = 0; index < AudioInCtx[Instance].ChannelsNbr; index++)
-    {
-      if (PDM_FilterConfig[index].mic_gain != VolumeGain[Volume])
-      {
-        PDM_FilterConfig[index].mic_gain = VolumeGain[Volume];
-        (void)PDM_Filter_setConfig((PDM_Filter_Handler_t *)&PDM_FilterHandler[index], &PDM_FilterConfig[index]);
-      }
-    }
-  }
-  else
-  {
-    /* Update AudioIn Context */
-    AudioInCtx[Instance].Volume = Volume;
-  }
-  /* Return BSP status */
-  return ret;
-}
-
-/**
-* @brief  Get the current audio in volume level.
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @param  Volume    Volume level to be returnd
-* @retval BSP status
-*/
-int32_t WINKY_AUDIO_IN_GetVolume(uint32_t Instance, uint32_t *Volume)
-{
-  int32_t ret = BSP_ERROR_NONE;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    /* Input Volume to be returned */
-    *Volume = AudioInCtx[Instance].Volume;
-  }
-  /* Return BSP status */
-  return ret;
-}
-
-/**
-* @brief  Get Audio In device
-* @param  Instance  AUDIO IN Instance. It can be 0 when I2S / SPI is used or 1 if DFSDM is used
-* @param  State     Audio Out state
-* @retval BSP status
-*/
-int32_t WINKY_AUDIO_IN_GetState(uint32_t Instance, uint32_t *State)
-{
-  int32_t ret = BSP_ERROR_NONE;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    /* Input State to be returned */
-    *State = AudioInCtx[Instance].State;
-  }
-  return ret;
-}
-
-
-/**
 * @brief Rx Transfer completed callbacks. It performs demuxing of the bit-interleaved PDM streams into
 byte-interleaved data suitable for PDM to PCM conversion. 1 ms of data for each microphone is
 written into the buffer that the user indicates when calling the WINKY_AUDIO_IN_Start(...) function.
 * @param hSai: SAI handle. Not used
 * @retval None
 */
-extern UART_HandleTypeDef huart1;
+
 void HAL_SAI_RxCpltCallback(SAI_HandleTypeDef *hSai)
 {
-    UNUSED(hSai);
-  uint32_t index;
-//  static uint8_t header[] = { 'a', 'b', 'c', 'd' };
-//  HAL_UART_Transmit(&huart1, header, sizeof(header), 500);
-//
-//  HAL_UART_Transmit(&huart1, SAI_InternalBuffer, (uint16_t)(AudioInCtx[0].Size/2U * AudioInCtx[0].ChannelsNbr) / 2, 500);
-  switch(AudioInCtx[0].ChannelsNbr){
-  case 1:
-    {
-      uint8_t * DataTempSAI = &(((uint8_t *)SAI_InternalBuffer)[AudioInCtx[0].Size/2U]) ;
-      for(index = 0; index < (AudioInCtx[0].Size/4U) ; index++)
-      {
-        ((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[2U*index]);
-      }
-      /* Remove after bugfix in PDMlib */
-      for(index = 0; index < (AudioInCtx[0].Size/8U) ; index++)
-      {
-     	  ((uint16_t *)(AudioInCtx[0].pBuff))[index] = HTONS(((uint16_t *)(AudioInCtx[0].pBuff))[index]);
-      }
-      break;
-    }
-  case 2:
-    {
-      uint8_t * DataTempSAI = &(((uint8_t *)SAI_InternalBuffer)[AudioInCtx[0].Size]) ;
-      for(index = 0; index < (AudioInCtx[0].Size) ; index++)
-      {
-        ((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[index]);
-      }
-      break;
-    }
-  case 4:
-    {
-      uint8_t * DataTempSAI = &(((uint8_t *)SAI_InternalBuffer)[AudioInCtx[0].Size  * 2U]) ;
-      for(index = 0; index < (AudioInCtx[0].Size * 2U) ; index++)
-      {
-        ((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[index]);
-      }
+	UNUSED(hSai);
+	uint32_t index;
 
-      break;
-    }
-  default:
-    {
+	switch(AudioInCtx[0].ChannelsNbr){
+	case 1:
+	{
+		uint8_t * DataTempSAI = &(((uint8_t *)SAI_InternalBuffer)[AudioInCtx[0].Size/2U]) ;
+		for(index = 0; index < (AudioInCtx[0].Size/4U) ; index++)
+		{
+			((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[2U*index]);
+		}
+		/* Remove after bugfix in PDMlib */
+		for(index = 0; index < (AudioInCtx[0].Size/8U) ; index++)
+		{
+			((uint16_t *)(AudioInCtx[0].pBuff))[index] = HTONS(((uint16_t *)(AudioInCtx[0].pBuff))[index]);
+		}
+		break;
+	}
+	case 2:
+	{
+		uint8_t * DataTempSAI = &(((uint8_t *)SAI_InternalBuffer)[AudioInCtx[0].Size]) ;
+		for(index = 0; index < (AudioInCtx[0].Size) ; index++)
+		{
+			((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[index]);
+		}
+		break;
+	}
+	case 4:
+	{
+		uint8_t * DataTempSAI = &(((uint8_t *)SAI_InternalBuffer)[AudioInCtx[0].Size  * 2U]) ;
+		for(index = 0; index < (AudioInCtx[0].Size * 2U) ; index++)
+		{
+			((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[index]);
+		}
 
-      break;
-    }
-  }
+		break;
+	}
+	default:
+	{
 
-  WINKY_AUDIO_IN_TransferComplete_CallBack(0);
+		break;
+	}
+	}
+
+	WINKY_AUDIO_IN_TransferComplete_CallBack(0);
 }
 
 /**
@@ -1040,100 +621,64 @@ written into the buffer that the user indicates when calling the WINKY_AUDIO_IN_
 */
 void HAL_SAI_RxHalfCpltCallback(SAI_HandleTypeDef *hSai)
 {
-  UNUSED(hSai);
-  uint32_t index;
+	UNUSED(hSai);
+	uint32_t index;
 
-  switch(AudioInCtx[0].ChannelsNbr){
-  case 1:
-    {
-      uint8_t * DataTempSAI = (uint8_t *)SAI_InternalBuffer;
-      for(index = 0; index < (AudioInCtx[0].Size/4U) ; index++)
-      {
-        ((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[2U*index]);
-      }
-      /* Remove after bugfix in PDMlib */
-      for(index = 0; index < (AudioInCtx[0].Size/8U) ; index++)
-           {
-         	  ((uint16_t *)(AudioInCtx[0].pBuff))[index] = HTONS(((uint16_t *)(AudioInCtx[0].pBuff))[index]);
-           }
-      break;
-    }
-  case 2:
-    {
-        uint8_t * DataTempSAI = (uint8_t *)SAI_InternalBuffer;
-      for(index = 0; index < (AudioInCtx[0].Size); index++)
-      {
-        ((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[index]);
-      }
+	switch(AudioInCtx[0].ChannelsNbr){
+	case 1:
+	{
+		uint8_t * DataTempSAI = (uint8_t *)SAI_InternalBuffer;
+		for(index = 0; index < (AudioInCtx[0].Size/4U) ; index++)
+		{
+			((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[2U*index]);
+		}
+		/* Remove after bugfix in PDMlib */
+		for(index = 0; index < (AudioInCtx[0].Size/8U) ; index++)
+		{
+			((uint16_t *)(AudioInCtx[0].pBuff))[index] = HTONS(((uint16_t *)(AudioInCtx[0].pBuff))[index]);
+		}
+		break;
+	}
+	case 2:
+	{
+		uint8_t * DataTempSAI = (uint8_t *)SAI_InternalBuffer;
+		for(index = 0; index < (AudioInCtx[0].Size); index++)
+		{
+			((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[index]);
+		}
 
-      break;
-    }
-  case 4:
-    {
-        uint8_t * DataTempSAI = (uint8_t *)SAI_InternalBuffer;
-      for(index = 0; index < (AudioInCtx[0].Size * 2U); index++)
-      {
-        ((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[index]);
-      }
+		break;
+	}
+	case 4:
+	{
+		uint8_t * DataTempSAI = (uint8_t *)SAI_InternalBuffer;
+		for(index = 0; index < (AudioInCtx[0].Size * 2U); index++)
+		{
+			((uint8_t *)(AudioInCtx[0].pBuff))[index] = (DataTempSAI[index]);
+		}
 
-      break;
-    }
-  default:
-    {
-
-      break;
-    }
-
-  }
-
-
-
-  WINKY_AUDIO_IN_HalfTransfer_CallBack(0);
-}
-
-void HAL_SAI_ErrorCallback(SAI_HandleTypeDef *hSai)
-{
-	printf("SAI Error\r\n");
-	__asm("BKPT #0\n") ; // Break into the debugger
-
-	while(1)
+		break;
+	}
+	default:
 	{
 
+		break;
 	}
+
+	}
+	WINKY_AUDIO_IN_HalfTransfer_CallBack(0);
 }
 
-/**
-* @brief  User callback when record buffer is filled.
-* @retval None
-*/
 __weak void WINKY_AUDIO_IN_TransferComplete_CallBack(uint32_t Instance)
 {
-  /* Prevent unused argument(s) compilation warning */
   UNUSED(Instance);
-
-  /* This function should be implemented by the user application.
-  It is called into this driver when the current buffer is filled
-  to prepare the next buffer pointer and its size. */
 }
 
-/**
-* @brief  Manages the DMA Half Transfer complete event.
-* @retval None
-*/
 __weak void WINKY_AUDIO_IN_HalfTransfer_CallBack(uint32_t Instance)
 {
-  /* Prevent unused argument(s) compilation warning */
   UNUSED(Instance);
-
-  /* This function should be implemented by the user application.
-  It is called into this driver when the current buffer is filled
-  to prepare the next buffer pointer and its size. */
 }
 
-/**
-* @brief  Audio IN Error callback function.
-* @retval None
-*/
 __weak void WINKY_AUDIO_IN_Error_CallBack(uint32_t Instance)
 {
   /* Prevent unused argument(s) compilation warning */
@@ -1143,23 +688,6 @@ __weak void WINKY_AUDIO_IN_Error_CallBack(uint32_t Instance)
   error occurs. */
 }
 
-/**
-  * @}
-  */
-
-/** @defgroup WINKY_AUDIO_IN_Private_Functions WINKY_AUDIO_IN Private Functions
-  * @{
-  */
-
-/*******************************************************************************
-Static Functions
-*******************************************************************************/
-
-/**
-* @brief AUDIO IN SAI MSP Init
-* @param None
-* @retval None
-*/
  void SAI_MspInit(SAI_HandleTypeDef *hsai)
 {
   GPIO_InitTypeDef  GPIO_InitStructure;
@@ -1229,13 +757,3 @@ Static Functions
   HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, WINKY_AUDIO_IN_IT_PRIORITY, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
 }
-
-
-// --------------------------------------------------------------------------------------------------------------------
-// ----- local functions
-// --------------------------------------------------------------------------------------------------------------------
-
-
-// --------------------------------------------------------------------------------------------------------------------
-// ----- public functions
-// --------------------------------------------------------------------------------------------------------------------

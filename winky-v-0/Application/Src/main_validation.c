@@ -240,11 +240,6 @@ void SystemClock_Config(void)
 	}
 }
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-
-}
-
 void Error_Handler(const char *file, const uint16_t line)
 {
 	__asm("BKPT #0\n") ; // Break into the debugger
