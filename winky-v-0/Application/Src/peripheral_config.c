@@ -95,7 +95,7 @@ void adc1_init(void)
   hadc1.Init.OversamplingMode = DISABLE;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
-    ERROR_HANDLER();
+    Error_Handler();
   }
   /** Configure Regular Channel
   */
@@ -107,7 +107,7 @@ void adc1_init(void)
   sConfig.Offset = 0;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
-    ERROR_HANDLER();
+    Error_Handler();
   }
   /* USER CODE BEGIN ADC1_Init 2 */
 
@@ -137,19 +137,19 @@ void i2c_init(I2C_HandleTypeDef* i2c)
 			hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
 			if (HAL_I2C_Init(&hi2c3) != HAL_OK)
 			{
-				ERROR_HANDLER();
+				Error_Handler();
 			}
 			/** Configure Analogue filter
 			 */
 			if (HAL_I2CEx_ConfigAnalogFilter(&hi2c3, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
 			{
-				ERROR_HANDLER();
+				Error_Handler();
 			}
 			/** Configure Digital filter
 			 */
 			if (HAL_I2CEx_ConfigDigitalFilter(&hi2c3, 0) != HAL_OK)
 			{
-				ERROR_HANDLER();
+				Error_Handler();
 			}
 		}
 	}
@@ -168,19 +168,19 @@ void i2c_init(I2C_HandleTypeDef* i2c)
       hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
       if (HAL_I2C_Init(&hi2c1) != HAL_OK)
       {
-        ERROR_HANDLER();
+        Error_Handler();
       }
       /** Configure Analogue filter
        */
       if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
       {
-        ERROR_HANDLER();
+        Error_Handler();
       }
       /** Configure Digital filter
        */
       if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
       {
-        ERROR_HANDLER();
+        Error_Handler();
       }
 
     }
@@ -218,7 +218,7 @@ void rtc_init(void)
   hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
   if (HAL_RTC_Init(&hrtc) != HAL_OK)
   {
-    ERROR_HANDLER();
+    Error_Handler();
   }
 
   HAL_NVIC_EnableIRQ(CFG_HW_TS_RTC_WAKEUP_HANDLER_ID);
@@ -260,7 +260,7 @@ void sai1_init(void)
 //  hsai_BlockA1.SlotInit.SlotActive = 0x00000000;
 //  if (HAL_SAI_Init(&hsai_BlockA1) != HAL_OK)
 //  {
-//    ERROR_HANDLER();
+//    Error_Handler();
 //  }
   // hsai_BlockB1.Instance = SAI1_Block_B;
   // hsai_BlockB1.Init.AudioMode = SAI_MODEMASTER_TX;
@@ -276,7 +276,7 @@ void sai1_init(void)
   // hsai_BlockB1.Init.TriState = SAI_OUTPUT_NOTRELEASED;
   // if (HAL_SAI_InitProtocol(&hsai_BlockB1, SAI_I2S_STANDARD, SAI_PROTOCOL_DATASIZE_16BIT, 2) != HAL_OK)
   // {
-  //   ERROR_HANDLER();
+  //   Error_Handler();
   // }
 
 }
@@ -306,7 +306,7 @@ void spi1_init(void)
   hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
   if (HAL_SPI_Init(&hspi1) != HAL_OK)
   {
-    ERROR_HANDLER();
+    Error_Handler();
   }
 }
 
@@ -346,14 +346,14 @@ void tim1_init(void)
 	  sConfig.IC2Filter = 0;
 	  if (HAL_TIM_Encoder_Init(&htim1, &sConfig) != HAL_OK)
 	  {
-	    ERROR_HANDLER();
+	    Error_Handler();
 	  }
 	  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
 	  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
 	  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
 	  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
 	  {
-	    ERROR_HANDLER();
+	    Error_Handler();
 	  }
 	  /* USER CODE BEGIN TIM1_Init 2 */
 
@@ -380,13 +380,13 @@ void tim2_init(void)
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
   {
-    ERROR_HANDLER();
+    Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
-    ERROR_HANDLER();
+    Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 0;
@@ -394,12 +394,12 @@ void tim2_init(void)
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
-    ERROR_HANDLER();
+    Error_Handler();
   }
   sConfigOC.Pulse = 50;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
   {
-    ERROR_HANDLER();
+    Error_Handler();
   }
 
   HAL_TIM_MspPostInit(&htim2);
@@ -437,139 +437,6 @@ void dma_init(void)
   * @param None
   * @retval None
   */
-void gpio_init(void)
-{
-	  GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-	  /* GPIO Ports Clock Enable */
-	  __HAL_RCC_GPIOC_CLK_ENABLE();
-	  __HAL_RCC_GPIOH_CLK_ENABLE();
-	  __HAL_RCC_GPIOB_CLK_ENABLE();
-	  __HAL_RCC_GPIOA_CLK_ENABLE();
-	  __HAL_RCC_GPIOE_CLK_ENABLE();
-	  __HAL_RCC_GPIOD_CLK_ENABLE();
-
-	  /*Configure GPIO pin Output Level */
-	  HAL_GPIO_WritePin(GPIOC, ToF_xSHUT_Pin, GPIO_PIN_RESET);
-	  HAL_GPIO_WritePin(GPIOC, FLASH_CS_Pin | EEPROM_CS_Pin, GPIO_PIN_SET);
-	  /*Configure GPIO pin Output Level */
-	  HAL_GPIO_WritePin(GPIOB, PH_M_Pin|nSLEEP_M_Pin|ISET_CHANGE_Pin|EN_5VBO_Pin
-	                          |EN_1V8DIG_Pin|EAR_L_Pin, GPIO_PIN_RESET);
-
-	  /*Configure GPIO pin Output Level */
-	  HAL_GPIO_WritePin(EN_3V0ANA_GPIO_Port, EN_3V0ANA_Pin, GPIO_PIN_RESET);
-
-	  /*Configure GPIO pin Output Level */
-	  HAL_GPIO_WritePin(GPIOA, EAR_R_Pin, GPIO_PIN_RESET); //|RST_IQS572_AUDIO_GPIO1_Pin
-
-	  /*Configure GPIO pin Output Level */
-	  HAL_GPIO_WritePin(AUDIO_RST_GPIO_Port, AUDIO_RST_Pin, GPIO_PIN_RESET);
-
-	  /*Configure GPIO pin : RDY_IQS572_WAKEUP2_Pin */
-	  GPIO_InitStruct.Pin = RDY_IQS572_WAKEUP2_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  HAL_GPIO_Init(RDY_IQS572_WAKEUP2_GPIO_Port, &GPIO_InitStruct);
-
-	  /*Configure GPIO pin : BOOT0_Pin */
-	  GPIO_InitStruct.Pin = BOOT0_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  HAL_GPIO_Init(BOOT0_GPIO_Port, &GPIO_InitStruct);
-
-	  /*Configure GPIO pin : RDY_I2C3_Pin */
-	  GPIO_InitStruct.Pin = RDY_I2C3_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  HAL_GPIO_Init(RDY_I2C3_GPIO_Port, &GPIO_InitStruct);
-
-	  /*Configure GPIO pin : ToF_IRQ_WAKEUP4_Pin */
-	  GPIO_InitStruct.Pin = ToF_IRQ_WAKEUP4_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  HAL_GPIO_Init(ToF_IRQ_WAKEUP4_GPIO_Port, &GPIO_InitStruct);
-
-	  /*Configure GPIO pins : FLASH_CS_Pin ToF_xSHUT_Pin EEPROM_CS_Pin */
-	  GPIO_InitStruct.Pin = FLASH_CS_Pin|ToF_xSHUT_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-	  GPIO_InitStruct.Pin = EEPROM_CS_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-	  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-	  /*Configure GPIO pins : Gesture_IRQ_WAKEUP5_Pin POS_EN_Pin IMU_IRQ_WAKEUP3_Pin */
-	  GPIO_InitStruct.Pin = Gesture_IRQ_WAKEUP5_Pin|POS_EN_Pin|IMU_IRQ_WAKEUP3_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-	  /*Configure GPIO pins : PH_M_Pin nSLEEP_M_Pin ISET_CHANGE_Pin EN_5VBO_Pin
-	                           EN_1V8DIG_Pin EAR_L_Pin */
-	  GPIO_InitStruct.Pin = PH_M_Pin|nSLEEP_M_Pin|ISET_CHANGE_Pin|EN_5VBO_Pin
-	                          |EN_1V8DIG_Pin|EAR_L_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-	  /*Configure GPIO pin : EN_3V0ANA_Pin */
-	  GPIO_InitStruct.Pin = EN_3V0ANA_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	  HAL_GPIO_Init(EN_3V0ANA_GPIO_Port, &GPIO_InitStruct);
-
-	  /*Configure GPIO pin : POWER_GOOD_IRQ_Pin */
-	  GPIO_InitStruct.Pin = POWER_GOOD_IRQ_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  HAL_GPIO_Init(POWER_GOOD_IRQ_GPIO_Port, &GPIO_InitStruct);
-
-	  /*Configure GPIO pins : EAR_R_Pin RST_IQS572_AUDIO_GPIO1_Pin */
-	  GPIO_InitStruct.Pin = EAR_R_Pin|RST_IQS572_AUDIO_GPIO1_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-	  /*Configure GPIO pin : LBO_5VBOOST_Pin */
-	  GPIO_InitStruct.Pin = LBO_5VBOOST_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  HAL_GPIO_Init(LBO_5VBOOST_GPIO_Port, &GPIO_InitStruct);
-
-	  /*Configure GPIO pin : AUDIO_RST_Pin */
-	  GPIO_InitStruct.Pin = AUDIO_RST_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	  HAL_GPIO_Init(AUDIO_RST_GPIO_Port, &GPIO_InitStruct);
-
-	  /*Configure GPIO pin : CHARGE_STATUS_IRQ_Pin */
-	  GPIO_InitStruct.Pin = CHARGE_STATUS_IRQ_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  HAL_GPIO_Init(CHARGE_STATUS_IRQ_GPIO_Port, &GPIO_InitStruct);
-
-	  /* EXTI interrupt init*/
-	  HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
-	  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-
-	  HAL_NVIC_SetPriority(EXTI2_IRQn, 5, 0);
-	  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
-
-	  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
-	  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
-
-	  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
-	  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-
-}
 
 void usart1_uart_init(void){
 
@@ -593,19 +460,19 @@ void usart1_uart_init(void){
 	  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
 	  if (HAL_UART_Init(&huart1) != HAL_OK)
 	  {
-	    ERROR_HANDLER();
+	    Error_Handler();
 	  }
 	  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
 	  {
-	    ERROR_HANDLER();
+	    Error_Handler();
 	  }
 	  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
 	  {
-	    ERROR_HANDLER();
+	    Error_Handler();
 	  }
 	  if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
 	  {
-	    ERROR_HANDLER();
+	    Error_Handler();
 	  }
 }
 

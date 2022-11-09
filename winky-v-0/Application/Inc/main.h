@@ -21,8 +21,7 @@ typedef struct{
 
 extern PLACE_IN_SECTION("BLE_APP_CONTEXT") WINKYAPP_Context_t WINKYAPP_Context;
 
-void Error_Handler(const char *file, const uint16_t line);
-#define ERROR_HANDLER() Error_Handler(__FILE__, __LINE__)
+void Error_Handler(void);
 
 #ifdef __cplusplus
 }
