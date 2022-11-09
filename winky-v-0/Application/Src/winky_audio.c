@@ -232,32 +232,6 @@ __weak int32_t WINKY_AUDIO_IN_Init(uint32_t Instance, WINKY_AUDIO_Init_t* AudioI
   return ret;
 }
 
-__weak int32_t WINKY_AUDIO_IN_DeInit(uint32_t Instance)
-{
-  int32_t ret = BSP_ERROR_NONE;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    if(Instance == 0U)
-    {
-
-    }
-
-    else /* (Instance == 1U) */
-    {
-      ret =  BSP_ERROR_WRONG_PARAM;
-    }
-    /* Update BSP AUDIO IN state */
-    AudioInCtx[Instance].State = AUDIO_IN_STATE_RESET;
-  }
-  /* Return BSP status */
-  return ret;
-}
-
 __weak HAL_StatusTypeDef MX_SAI_ClockConfig(SAI_HandleTypeDef *hSai, uint32_t PDM_rate)
 {
   UNUSED(hSai);
@@ -427,142 +401,6 @@ int32_t WINKY_AUDIO_IN_Record(uint32_t Instance, uint8_t* pBuf, uint32_t NbrOfBy
   return ret;
 }
 
-int32_t WINKY_AUDIO_IN_Stop(uint32_t Instance)
-{
-  int32_t ret;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    if(Instance == 0U)
-    {
-      ret = BSP_ERROR_NONE;
-
-      if(HAL_SAI_DMAStop(&hAudioInSai) != HAL_OK)
-      {
-        ret = BSP_ERROR_PERIPH_FAILURE;
-      }
-
-    }
-    else /*(Instance == 1U) */
-    {
-      ret =  BSP_ERROR_WRONG_PARAM;
-
-    }
-    /* Update BSP AUDIO IN state */
-    AudioInCtx[Instance].State = AUDIO_IN_STATE_STOP;
-  }
-  /* Return BSP status */
-  return ret;
-}
-
-int32_t WINKY_AUDIO_IN_Pause(uint32_t Instance)
-{
-  int32_t ret;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    if(Instance == 0U)
-    {
-      ret = BSP_ERROR_NONE;
-
-      if(HAL_SAI_DMAPause(&hAudioInSai)!= HAL_OK)
-      {
-        ret = BSP_ERROR_WRONG_PARAM;
-      }
-    }
-    else /* (Instance == 1U) */
-    {
-      ret =  BSP_ERROR_WRONG_PARAM;
-
-    }
-    /* Update BSP AUDIO IN state */
-    AudioInCtx[Instance].State = AUDIO_IN_STATE_PAUSE;
-  }
-  /* Return BSP status */
-  return ret;
-}
-
-int32_t WINKY_AUDIO_IN_Resume(uint32_t Instance)
-{
-  int32_t ret;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    if(Instance == 0U)
-    {
-      ret = BSP_ERROR_NONE;
-
-      if(HAL_SAI_DMAResume(&hAudioInSai)!= HAL_OK)
-      {
-        ret = BSP_ERROR_WRONG_PARAM;
-      }
-    }
-    else /* (Instance == 1U) */
-    {
-      ret =  BSP_ERROR_WRONG_PARAM;
-    }
-    /* Update BSP AUDIO IN state */
-    AudioInCtx[Instance].State = AUDIO_IN_STATE_RECORDING;
-  }
-  /* Return BSP status */
-  return ret;
-}
-
-int32_t WINKY_AUDIO_IN_SetDevice(uint32_t Instance, uint32_t Device)
-{
-  int32_t ret = BSP_ERROR_NONE;
-  WINKY_AUDIO_Init_t audio_init;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else if(AudioInCtx[Instance].State == AUDIO_IN_STATE_STOP)
-  {
-    if(Instance == 1U)
-    {
-      ret =  BSP_ERROR_WRONG_PARAM;
-    }
-    audio_init.Device = Device;
-    audio_init.ChannelsNbr   = AudioInCtx[Instance].ChannelsNbr;
-    audio_init.SampleRate    = AudioInCtx[Instance].SampleRate;
-    audio_init.BitsPerSample = AudioInCtx[Instance].BitsPerSample;
-    audio_init.Volume        = AudioInCtx[Instance].Volume;
-
-    if(WINKY_AUDIO_IN_Init(Instance, &audio_init) != BSP_ERROR_NONE)
-    {
-      ret = BSP_ERROR_NO_INIT;
-    }
-  }
-  else
-  {
-    ret = BSP_ERROR_BUSY;
-  }
-
-  /* Return BSP status */
-  return ret;
-}
-
-/**
-* @brief Rx Transfer completed callbacks. It performs demuxing of the bit-interleaved PDM streams into
-byte-interleaved data suitable for PDM to PCM conversion. 1 ms of data for each microphone is
-written into the buffer that the user indicates when calling the WINKY_AUDIO_IN_Start(...) function.
-* @param hSai: SAI handle. Not used
-* @retval None
-*/
-
 void HAL_SAI_RxCpltCallback(SAI_HandleTypeDef *hSai)
 {
 	UNUSED(hSai);
@@ -612,13 +450,6 @@ void HAL_SAI_RxCpltCallback(SAI_HandleTypeDef *hSai)
 	WINKY_AUDIO_IN_TransferComplete_CallBack(0);
 }
 
-/**
-* @brief Rx Transfer completed callbacks. It performs demuxing of the bit-interleaved PDM streams into
-byte-interleaved data suitable for PDM to PCM conversion. 1 ms of data for each microphone is
-written into the buffer that the user indicates when calling the WINKY_AUDIO_IN_Start(...) function.
-* @param hSai: SAI handle. Not used
-* @retval None
-*/
 void HAL_SAI_RxHalfCpltCallback(SAI_HandleTypeDef *hSai)
 {
 	UNUSED(hSai);
@@ -677,15 +508,6 @@ __weak void WINKY_AUDIO_IN_TransferComplete_CallBack(uint32_t Instance)
 __weak void WINKY_AUDIO_IN_HalfTransfer_CallBack(uint32_t Instance)
 {
   UNUSED(Instance);
-}
-
-__weak void WINKY_AUDIO_IN_Error_CallBack(uint32_t Instance)
-{
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(Instance);
-
-  /* This function is called when an Interrupt due to transfer error on or peripheral
-  error occurs. */
 }
 
  void SAI_MspInit(SAI_HandleTypeDef *hsai)

@@ -12,6 +12,17 @@
 void SystemClock_Config(void);
 void HAL_UART_MspInit2(UART_HandleTypeDef* huart);
 
+/*Number of millisecond of audio at each DMA interrupt*/
+#define N_MS_PER_INTERRUPT               (1U)
+#define AUDIO_IN_CHANNELS 				 4
+#define AUDIO_IN_SAMPLING_FREQUENCY 	 16000
+#define MAX_DECIMATION_FACTOR 			 128
+
+#define AUDIO_IN_BUFFER_SIZE             DEFAULT_AUDIO_IN_BUFFER_SIZE
+#define AUDIO_VOLUME_INPUT               64U
+#define WINKY_AUDIO_INSTANCE 			 0U
+#define WINKY_AUDIO_IN_IT_PRIORITY    	 5U
+
 uint16_t PDM_Buffer[((((AUDIO_IN_CHANNELS * AUDIO_IN_SAMPLING_FREQUENCY) / 1000) * MAX_DECIMATION_FACTOR) / 16)* N_MS_PER_INTERRUPT ];
 uint16_t PCM_Buffer[((AUDIO_IN_CHANNELS*AUDIO_IN_SAMPLING_FREQUENCY)/1000)  * N_MS_PER_INTERRUPT ];
 WINKY_AUDIO_Init_t MicParams;
@@ -100,15 +111,8 @@ void AudioProcess(void)
 
 }
 
-void WINKY_AUDIO_IN_HalfTransfer_CallBack(uint32_t Instance)
-{
-  AudioProcess();
-}
-
-void WINKY_AUDIO_IN_TransferComplete_CallBack(uint32_t Instance)
-{
-  AudioProcess();
-}
+void WINKY_AUDIO_IN_HalfTransfer_CallBack(uint32_t Instance) 	 { AudioProcess(); }
+void WINKY_AUDIO_IN_TransferComplete_CallBack(uint32_t Instance) { AudioProcess(); }
 
 static void MX_USART1_UART_Init(void)
 {
@@ -152,7 +156,6 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE END USART1_Init 2 */
 
 }
-
 static void MX_DMA_Init(void)
 {
 
@@ -180,7 +183,6 @@ static void MX_GPIO_Init(void)
 	  __HAL_RCC_GPIOE_CLK_ENABLE();
 	  __HAL_RCC_GPIOD_CLK_ENABLE();
 }
-
 void SystemClock_Config(void)
 {
 	RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -266,7 +268,6 @@ void SystemClock_Config(void)
 		Error_Handler();
 	}
 }
-
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
