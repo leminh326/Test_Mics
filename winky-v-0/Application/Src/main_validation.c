@@ -1,15 +1,3 @@
-/*
- * main_validation.c
- *
- *  Created on: 26 sept. 2019
- *      Author: clement
- */
-
-
-// --------------------------------------------------------------------------------------------------------------------
-// ----- includes
-// --------------------------------------------------------------------------------------------------------------------
-#include <ear.h>
 #include "main.h"
 #include "cmsis_os.h"
 #include <stdbool.h>
@@ -19,27 +7,7 @@
 #include "app_common.h"
 #include "gatt_service.h"
 
-#include "ht16k33.h"
-#include "motorhead.h"
-#include "imu9_axes_impl.h"
-#include "battery.h"
-#include "apds9960.h"
-#include "tof.h"
-#include "audio_codec_tlv300dac31.h"
-#include "winky_eeprom_impl.h"
-#include "w25qxx.h"
-#include "IQS5xx.h"
-#include "winky_touch.h"
-#include "IQS333.h"
 #include "winky_audio.h"
-
-
-#define DEFAULT_HSE_TUNNING_CAPACITOR (18)
-#define FLAGS_MSK_HEAD_ALIGNEMENT 0x00000001U
-#define FLAGS_MSK_BLE_WRITE 0x00000004U
-
-osEventFlagsId_t interruptFlagId;
-PLACE_IN_SECTION("BLE_APP_CONTEXT") WINKYAPP_Context_t WINKYAPP_Context;
 
 void SystemClock_Config(void);
 void HAL_UART_MspInit2(UART_HandleTypeDef* huart);
@@ -52,6 +20,39 @@ extern UART_HandleTypeDef huart1;
 extern DMA_HandleTypeDef hdma_usart1_tx;
 extern DMA_HandleTypeDef hdma_usart1_rx;
 
+void AudioProcess(void);
+void WINKY_AUDIO_IN_HalfTransfer_CallBack(uint32_t Instance);
+void WINKY_AUDIO_IN_TransferComplete_CallBack(uint32_t Instance);
+
+int main(void)
+{
+	HAL_Init();
+	SystemClock_Config();
+
+	gpio_init();
+	dma_init();
+
+	HAL_UART_MspInit2(&huart1);
+
+	winky_debug_init();
+
+	MicParams.BitsPerSample = 16;
+	MicParams.ChannelsNbr = AUDIO_IN_CHANNELS;
+	MicParams.Device = AUDIO_IN_DIGITAL_MIC;
+	MicParams.SampleRate = AUDIO_IN_SAMPLING_FREQUENCY;
+	MicParams.Volume = AUDIO_VOLUME_INPUT;
+
+	WINKY_AUDIO_IN_Init(WINKY_AUDIO_INSTANCE, &MicParams);
+	WINKY_AUDIO_IN_Record(WINKY_AUDIO_INSTANCE, (uint8_t *) PDM_Buffer, AUDIO_IN_BUFFER_SIZE);
+
+	/* Infinite loop */
+	while (1)
+	{
+
+	}
+
+}
+
 void AudioProcess(void)
 {
 	WINKY_AUDIO_IN_PDMToPCM(WINKY_AUDIO_INSTANCE,(uint16_t * )PDM_Buffer,PCM_Buffer);
@@ -60,11 +61,7 @@ void AudioProcess(void)
 	static uint8_t header[] = { 'a', 'b', 'c', 'd', 0 };
 	header[4] = counter++;
 	static uint16_t aPCMBufferOUT[AUDIO_IN_SAMPLING_FREQUENCY/1000];
-	uint32_t sum1,sum2,sum3,sum4;
-	sum1=0;
-	sum2=0;
-	sum3=0;
-	sum4=0;
+	uint32_t sum1 = 0, sum2 = 0, sum3 = 0, sum4 = 0;
     for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
     {
         aPCMBufferOUT[i] = PCM_Buffer[AUDIO_IN_CHANNELS * i];
@@ -112,35 +109,6 @@ void WINKY_AUDIO_IN_TransferComplete_CallBack(uint32_t Instance)
   AudioProcess();
 }
 
-int main(void)
-{
-	HAL_Init();
-	SystemClock_Config();
-
-	gpio_init();
-	dma_init();
-
-	HAL_UART_MspInit2(&huart1);
-
-	winky_debug_init();
-
-	MicParams.BitsPerSample = 16;
-	MicParams.ChannelsNbr = AUDIO_IN_CHANNELS;
-	MicParams.Device = AUDIO_IN_DIGITAL_MIC;
-	MicParams.SampleRate = AUDIO_IN_SAMPLING_FREQUENCY;
-	MicParams.Volume = AUDIO_VOLUME_INPUT;
-
-	WINKY_AUDIO_IN_Init(WINKY_AUDIO_INSTANCE, &MicParams);
-	WINKY_AUDIO_IN_Record(WINKY_AUDIO_INSTANCE, (uint8_t *) PDM_Buffer, AUDIO_IN_BUFFER_SIZE);
-
-	/* Infinite loop */
-	while (1)
-	{
-
-	}
-
-}
-
 void HAL_UART_MspInit2(UART_HandleTypeDef* huart)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -186,10 +154,6 @@ void HAL_UART_MspInit2(UART_HandleTypeDef* huart)
   }
 }
 
-/**
- * @brief System Clock Configuration
- * @retval None
- */
 void SystemClock_Config(void)
 {
 	RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -275,102 +239,6 @@ void SystemClock_Config(void)
 		ERROR_HANDLER();
 	}
 }
-
-static void Reset_Device( void )
-{
-#if ( CFG_HW_RESET_BY_FW == 1 )
-	Reset_BackupDomain();
-
-	Reset_IPCC();
-#endif
-
-	return;
-}
-
-static void Reset_IPCC( void )
-{
-	LL_AHB3_GRP1_EnableClock(LL_AHB3_GRP1_PERIPH_IPCC);
-
-	LL_C1_IPCC_ClearFlag_CHx(
-			IPCC,
-			LL_IPCC_CHANNEL_1 | LL_IPCC_CHANNEL_2 | LL_IPCC_CHANNEL_3 | LL_IPCC_CHANNEL_4
-			| LL_IPCC_CHANNEL_5 | LL_IPCC_CHANNEL_6);
-
-	LL_C2_IPCC_ClearFlag_CHx(
-			IPCC,
-			LL_IPCC_CHANNEL_1 | LL_IPCC_CHANNEL_2 | LL_IPCC_CHANNEL_3 | LL_IPCC_CHANNEL_4
-			| LL_IPCC_CHANNEL_5 | LL_IPCC_CHANNEL_6);
-
-	LL_C1_IPCC_DisableTransmitChannel(
-			IPCC,
-			LL_IPCC_CHANNEL_1 | LL_IPCC_CHANNEL_2 | LL_IPCC_CHANNEL_3 | LL_IPCC_CHANNEL_4
-			| LL_IPCC_CHANNEL_5 | LL_IPCC_CHANNEL_6);
-
-	LL_C2_IPCC_DisableTransmitChannel(
-			IPCC,
-			LL_IPCC_CHANNEL_1 | LL_IPCC_CHANNEL_2 | LL_IPCC_CHANNEL_3 | LL_IPCC_CHANNEL_4
-			| LL_IPCC_CHANNEL_5 | LL_IPCC_CHANNEL_6);
-
-	LL_C1_IPCC_DisableReceiveChannel(
-			IPCC,
-			LL_IPCC_CHANNEL_1 | LL_IPCC_CHANNEL_2 | LL_IPCC_CHANNEL_3 | LL_IPCC_CHANNEL_4
-			| LL_IPCC_CHANNEL_5 | LL_IPCC_CHANNEL_6);
-
-	LL_C2_IPCC_DisableReceiveChannel(
-			IPCC,
-			LL_IPCC_CHANNEL_1 | LL_IPCC_CHANNEL_2 | LL_IPCC_CHANNEL_3 | LL_IPCC_CHANNEL_4
-			| LL_IPCC_CHANNEL_5 | LL_IPCC_CHANNEL_6);
-
-	return;
-}
-
-static void Reset_BackupDomain( void )
-{
-	if ((LL_RCC_IsActiveFlag_PINRST() != FALSE) && (LL_RCC_IsActiveFlag_SFTRST() == FALSE))
-	{
-		HAL_PWR_EnableBkUpAccess(); /**< Enable access to the RTC registers */
-
-		/**
-		 *  Write twice the value to flush the APB-AHB bridge
-		 *  This bit shall be written in the register before writing the next one
-		 */
-		HAL_PWR_EnableBkUpAccess();
-
-		__HAL_RCC_BACKUPRESET_FORCE();
-		__HAL_RCC_BACKUPRESET_RELEASE();
-	}
-
-	return;
-}
-
-static void Init_Exti( void )
-{
-  /**< Disable all wakeup interrupt on CPU1  except IPCC(36), HSEM(38) */
-  LL_EXTI_DisableIT_0_31(~0);
-  LL_EXTI_DisableIT_32_63( (~0) & (~(LL_EXTI_LINE_36 | LL_EXTI_LINE_38)) );
-
-  return;
-}
-
-
-typedef struct wav_header_t
-{
-	uint8_t   FileTypeBlocID[4];
-	uint32_t  FileSize;
-	char    FileFormatID[4];
-	uint8_t   FormatBlocID[4];
-	uint32_t  BlocSize;
-	uint16_t  AudioFormat;
-	uint16_t  NbrCanaux;
-	uint32_t  Frequence;
-	uint32_t  BytePerSec;
-	uint16_t  BytePerBloc;
-	uint16_t  BitsPerSample;
-	uint32_t  DataBlocID;
-	uint32_t  DataSize;
-}wav_header_t;
-
-#pragma pack(1)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
