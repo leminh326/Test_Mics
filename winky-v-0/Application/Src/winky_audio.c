@@ -87,8 +87,6 @@ static __IO uint32_t    RecBuffTrigger          = 0;
 static __IO uint32_t    RecBuffHalf             = 0;
 static __IO uint32_t    MicBuffIndex[4];
 
-
-static void SAI_MspInit(SAI_HandleTypeDef *hsai);
 extern UART_HandleTypeDef huart1;
 
 __weak int32_t WINKY_AUDIO_IN_Init(uint32_t Instance, WINKY_AUDIO_Init_t* AudioInit)
@@ -156,11 +154,6 @@ __weak int32_t WINKY_AUDIO_IN_Init(uint32_t Instance, WINKY_AUDIO_Init_t* AudioI
       if(MX_SAI_ClockConfig(&hAudioInSai, PDM_Clock_Freq) != HAL_OK)
       {
         ret =  BSP_ERROR_CLOCK_FAILURE;
-      }
-
-      if(HAL_SAI_GetState(&hAudioInSai) == HAL_SAI_STATE_RESET)
-      {
-        SAI_MspInit(&hAudioInSai);
       }
 
       hAudioInSai.Instance = AUDIO_IN_SAI_INSTANCE;
@@ -508,74 +501,4 @@ __weak void WINKY_AUDIO_IN_TransferComplete_CallBack(uint32_t Instance)
 __weak void WINKY_AUDIO_IN_HalfTransfer_CallBack(uint32_t Instance)
 {
   UNUSED(Instance);
-}
-
- void SAI_MspInit(SAI_HandleTypeDef *hsai)
-{
-  GPIO_InitTypeDef  GPIO_InitStructure;
-
-  /* Enable the SAI peripheral clock */
-  AUDIO_IN_SAI_CLK_ENABLE();
-
-  /* Enable SAI GPIO clocks */
-  AUDIO_IN_SAI_SCK_GPIO_CLK_ENABLE();
-  AUDIO_IN_SAI_SD_GPIO_CLK_ENABLE();
-  AUDIO_IN_SAI_SD2_GPIO_CLK_ENABLE();
-
-  /* SAI pins configuration: SCK and SD pins ------------------------------*/
-  GPIO_InitStructure.Pin       = AUDIO_IN_CLK_GPIO_Pin;
-  GPIO_InitStructure.Mode      = GPIO_MODE_AF_PP;
-  GPIO_InitStructure.Pull      = GPIO_NOPULL;
-  GPIO_InitStructure.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStructure.Alternate = GPIO_AF3_SAI1;
-  HAL_GPIO_Init(AUDIO_IN_CLK_GPIO_Port, &GPIO_InitStructure);
-
-  GPIO_InitStructure.Pin       = AUDIO_IN_DATA1_GPIO_Pin;
-  GPIO_InitStructure.Mode      = GPIO_MODE_AF_PP;
-  GPIO_InitStructure.Pull      = GPIO_NOPULL;
-  GPIO_InitStructure.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStructure.Alternate = GPIO_AF3_SAI1;
-  HAL_GPIO_Init(AUDIO_IN_DATA1_GPIO_Port, &GPIO_InitStructure);
-
-  GPIO_InitStructure.Pin       = AUDIO_IN_DATA2_GPIO_Pin;
-  GPIO_InitStructure.Mode      = GPIO_MODE_AF_PP;
-  GPIO_InitStructure.Pull      = GPIO_NOPULL;
-  GPIO_InitStructure.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStructure.Alternate = GPIO_AF3_SAI1;
-  HAL_GPIO_Init(AUDIO_IN_DATA2_GPIO_Port, &GPIO_InitStructure);
-
-  /* Enable the DMA clock */
-    /* DMA controller clock enable */
-  __HAL_RCC_DMAMUX1_CLK_ENABLE();
-  __HAL_RCC_DMA1_CLK_ENABLE();
-
-
-    /* Configure the hAudioInSaiDmaRx handle parameters */
-  hAudioInSaiDmaRx.Instance = DMA1_Channel3; /*tODO DEFINES */
-  hAudioInSaiDmaRx.Init.Request             = DMA_REQUEST_SAI1_A;
-  hAudioInSaiDmaRx.Init.Direction           = DMA_PERIPH_TO_MEMORY;
-  hAudioInSaiDmaRx.Init.PeriphInc           = DMA_PINC_DISABLE;
-  hAudioInSaiDmaRx.Init.MemInc              = DMA_MINC_ENABLE;
-  hAudioInSaiDmaRx.Init.PeriphDataAlignment = AUDIO_IN_SAI_DMAx_PERIPH_DATA_SIZE;
-  hAudioInSaiDmaRx.Init.MemDataAlignment    = AUDIO_IN_SAI_DMAx_MEM_DATA_SIZE;
-  hAudioInSaiDmaRx.Init.Mode                = DMA_CIRCULAR;
-  hAudioInSaiDmaRx.Init.Priority            = DMA_PRIORITY_HIGH;
-
-
-
-
-    /* Deinitialize the Stream for new transfer */
-    (void)HAL_DMA_DeInit(&hAudioInSaiDmaRx);
-
-    /* Configure the DMA Stream */
-    if(HAL_DMA_Init(&hAudioInSaiDmaRx) != HAL_OK)
-    {
-    	printf("[AUDIO_CODEC] Error while enable SAI DMA \r\n");
-    }
-    /* Associate the DMA handle */
-    __HAL_LINKDMA(hsai, hdmarx, hAudioInSaiDmaRx);
-
-  /* I2S DMA IRQ Channel configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, WINKY_AUDIO_IN_IT_PRIORITY, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
 }

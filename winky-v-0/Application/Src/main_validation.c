@@ -27,9 +27,11 @@ uint16_t PDM_Buffer[((((AUDIO_IN_CHANNELS * AUDIO_IN_SAMPLING_FREQUENCY) / 1000)
 uint16_t PCM_Buffer[((AUDIO_IN_CHANNELS*AUDIO_IN_SAMPLING_FREQUENCY)/1000)  * N_MS_PER_INTERRUPT ];
 WINKY_AUDIO_Init_t MicParams;
 
-extern UART_HandleTypeDef huart1;
-extern DMA_HandleTypeDef hdma_usart1_tx;
-extern DMA_HandleTypeDef hdma_usart1_rx;
+SAI_HandleTypeDef  hsai_BlockA1;
+UART_HandleTypeDef huart1;
+DMA_HandleTypeDef  hdma_usart1_tx;
+DMA_HandleTypeDef  hdma_usart1_rx;
+DMA_HandleTypeDef  hdma_sai1_a;
 
 void AudioProcess(void);
 void WINKY_AUDIO_IN_HalfTransfer_CallBack(uint32_t Instance);
@@ -38,6 +40,17 @@ void WINKY_AUDIO_IN_TransferComplete_CallBack(uint32_t Instance);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
+static void Audio_to_UART_Blocking_Mode();
+static void Audio_to_UART_DMA_Mode();
+
+uint32_t sai_clk_feq;
+
+// Clock in SAI
+// Clock out SAI
+// PCM sample rate 16kHz
+// Mics number 4
+
+
 
 int main(void)
 {
@@ -57,23 +70,32 @@ int main(void)
 	WINKY_AUDIO_IN_Init(WINKY_AUDIO_INSTANCE, &MicParams);
 	WINKY_AUDIO_IN_Record(WINKY_AUDIO_INSTANCE, (uint8_t *) PDM_Buffer, AUDIO_IN_BUFFER_SIZE);
 
+//	sai_clk_feq = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SAI1);
+
 	/* Infinite loop */
 	while (1)
 	{
 
 	}
-
 }
 
+// **************** Blocking Mode ****************** //
 void AudioProcess(void)
 {
 	WINKY_AUDIO_IN_PDMToPCM(WINKY_AUDIO_INSTANCE,(uint16_t * )PDM_Buffer,PCM_Buffer);
+	Audio_to_UART_Blocking_Mode();
 
+
+}
+static void Audio_to_UART_Blocking_Mode()
+{
+	// *************** Blocking Mode *************** //
 	static uint8_t counter = 0;
 	static uint8_t header[] = { 'a', 'b', 'c', 'd', 0 };
 	header[4] = counter++;
 	static uint16_t aPCMBufferOUT[AUDIO_IN_SAMPLING_FREQUENCY/1000];
 	uint32_t sum1 = 0, sum2 = 0, sum3 = 0, sum4 = 0;
+
     for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
     {
         aPCMBufferOUT[i] = PCM_Buffer[AUDIO_IN_CHANNELS * i];
@@ -81,8 +103,6 @@ void AudioProcess(void)
     }
 	HAL_UART_Transmit(&huart1, header, sizeof(header), 500);
 	HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500);
-    //HAL_UART_Transmit_DMA(&huart1, header, sizeof(header));
-    //HAL_UART_Transmit_DMA(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t));
 
     for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
     {
@@ -91,7 +111,6 @@ void AudioProcess(void)
     }
 
     HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500);
-    //HAL_UART_Transmit_DMA(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t));
 
     for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
     {
@@ -99,7 +118,6 @@ void AudioProcess(void)
         sum3 +=aPCMBufferOUT[i];
     }
     HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500);
-    //HAL_UART_Transmit_DMA(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t));
 
     for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
     {
@@ -107,9 +125,35 @@ void AudioProcess(void)
         sum4 +=aPCMBufferOUT[i];
     }
 //    HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500);
-    //HAL_UART_Transmit_DMA(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t));
-
 }
+
+static void Audio_to_UART_DMA_Mode()
+{
+	// *************** DMA Mode *************** //
+	static uint8_t counter = 0;
+	static uint8_t header[] = { 'a', 'b', 'c', 0 };
+	header[3] = counter++;
+	static uint16_t aPCMBufferOUT[AUDIO_IN_SAMPLING_FREQUENCY/1000 * AUDIO_IN_CHANNELS];
+	uint32_t sum1,sum2,sum3,sum4;
+	sum1=0;
+	sum2=0;
+	sum3=0;
+	sum4=0;
+	for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
+	{
+		aPCMBufferOUT[i] = PCM_Buffer[AUDIO_IN_CHANNELS * i];
+		aPCMBufferOUT[i+16] = PCM_Buffer[AUDIO_IN_CHANNELS * i + 1];
+		aPCMBufferOUT[i+32] = PCM_Buffer[AUDIO_IN_CHANNELS * i + 2];
+		aPCMBufferOUT[i+48] = PCM_Buffer[AUDIO_IN_CHANNELS * i + 3];
+	}
+	uint16_t BufferOUT [66];
+	memcpy(BufferOUT, header, 4 * sizeof(uint8_t));
+	memcpy(BufferOUT + 2, aPCMBufferOUT, 64 * sizeof(uint16_t));
+	HAL_UART_Transmit_DMA(&huart1, BufferOUT, 2 + AUDIO_IN_CHANNELS * (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t));
+}
+
+
+
 
 void WINKY_AUDIO_IN_HalfTransfer_CallBack(uint32_t Instance) 	 { AudioProcess(); }
 void WINKY_AUDIO_IN_TransferComplete_CallBack(uint32_t Instance) { AudioProcess(); }
