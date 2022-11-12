@@ -328,7 +328,6 @@ extern AUDIO_IN_Ctx_t                         AudioInCtx[];
   */
 int32_t WINKY_AUDIO_IN_Init(WINKY_AUDIO_Init_t* AudioInit);
 int32_t WINKY_AUDIO_IN_DeInit(uint32_t Instance);
-int32_t WINKY_AUDIO_IN_Record(uint8_t* pBuf, uint32_t NbrOfBytes);
 int32_t WINKY_AUDIO_IN_Stop(uint32_t Instance);
 int32_t WINKY_AUDIO_IN_Pause(uint32_t Instance);
 int32_t WINKY_AUDIO_IN_Resume(uint32_t Instance);
@@ -351,8 +350,6 @@ int32_t WINKY_AUDIO_IN_GetVolume(uint32_t Instance, uint32_t *Volume);
 int32_t WINKY_AUDIO_IN_GetState(uint32_t Instance, uint32_t *State);
 
 /* Specific PDM recodr APIs */
-int32_t WINKY_AUDIO_IN_PDMToPCM_Init(uint32_t AudioFreq);
-int32_t WINKY_AUDIO_IN_PDMToPCM(uint16_t *PDMBuf, uint16_t *PCMBuf);
 int32_t WINKY_AUDIO_IN_RecordPDM(uint32_t Instance, uint8_t* pBuf, uint32_t NbrOfBytes);
 
 void WINKY_AUDIO_IN_IRQHandler(uint32_t Instance, uint32_t Device);
