@@ -351,7 +351,7 @@ int32_t WINKY_AUDIO_IN_GetVolume(uint32_t Instance, uint32_t *Volume);
 int32_t WINKY_AUDIO_IN_GetState(uint32_t Instance, uint32_t *State);
 
 /* Specific PDM recodr APIs */
-int32_t WINKY_AUDIO_IN_PDMToPCM_Init(uint32_t AudioFreq, uint32_t ChnlNbrIn, uint32_t ChnlNbrOut);
+int32_t WINKY_AUDIO_IN_PDMToPCM_Init(uint32_t AudioFreq);
 int32_t WINKY_AUDIO_IN_PDMToPCM(uint16_t *PDMBuf, uint16_t *PCMBuf);
 int32_t WINKY_AUDIO_IN_RecordPDM(uint32_t Instance, uint8_t* pBuf, uint32_t NbrOfBytes);
 

@@ -46,6 +46,9 @@ static void MX_USART1_UART_Init(void);
 static void Audio_to_UART_Blocking_Mode();
 static void Audio_to_UART_DMA_Mode();
 static void MX_SAI1_Init(void);
+
+static void Start_Record();
+
 uint32_t sai_clk_feq = 0;
 int main(void)
 {
@@ -75,7 +78,7 @@ int main(void)
 	MicParams.SampleRate = AUDIO_IN_SAMPLING_FREQUENCY;
 	MicParams.Volume = AUDIO_VOLUME_INPUT;
 
-	WINKY_AUDIO_IN_Init(&MicParams);
+	WINKY_AUDIO_IN_PDMToPCM_Init(16000);
 	WINKY_AUDIO_IN_Record((uint8_t *) PDM_Buffer, AUDIO_IN_BUFFER_SIZE);
 
 	sai_clk_feq = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SAI1);
@@ -85,6 +88,11 @@ int main(void)
 	{
 
 	}
+}
+
+static void Start_Record()
+{
+
 }
 
 void AudioProcess(void)
