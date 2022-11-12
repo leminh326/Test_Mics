@@ -33,6 +33,9 @@ DMA_HandleTypeDef  hdma_usart1_tx;
 DMA_HandleTypeDef  hdma_usart1_rx;
 DMA_HandleTypeDef  hdma_sai1_a;
 
+PDM_Filter_Handler_t m_PDM_filter;
+PDM_Filter_Config_t m_PDM_Filter_Config;
+
 void AudioProcess(void);
 void WINKY_AUDIO_IN_HalfTransfer_CallBack(uint32_t Instance);
 void WINKY_AUDIO_IN_TransferComplete_CallBack(uint32_t Instance);
@@ -54,14 +57,26 @@ int main(void)
 	MX_USART1_UART_Init();
 	MX_SAI1_Init();
 
+    m_PDM_filter.bit_order           = PDM_FILTER_BIT_ORDER_LSB;
+    m_PDM_filter.endianness       = PDM_FILTER_ENDIANNESS_LE;
+    m_PDM_filter.high_pass_tap       = 2122358088;
+    m_PDM_filter.in_ptr_channels  = 4;
+    m_PDM_filter.out_ptr_channels = 4;
+    PDM_Filter_Init(&m_PDM_filter);
+
+    m_PDM_Filter_Config.decimation_factor       = PDM_FILTER_DEC_FACTOR_24;
+    m_PDM_Filter_Config.output_samples_number = 16;
+    m_PDM_Filter_Config.mic_gain              = 24;
+    PDM_Filter_setConfig(&m_PDM_filter, &m_PDM_Filter_Config);
+
 	MicParams.BitsPerSample = 16;
 	MicParams.ChannelsNbr = AUDIO_IN_CHANNELS;
 	MicParams.Device = AUDIO_IN_DIGITAL_MIC;
 	MicParams.SampleRate = AUDIO_IN_SAMPLING_FREQUENCY;
 	MicParams.Volume = AUDIO_VOLUME_INPUT;
 
-	WINKY_AUDIO_IN_Init(WINKY_AUDIO_INSTANCE, &MicParams);
-	WINKY_AUDIO_IN_Record(WINKY_AUDIO_INSTANCE, (uint8_t *) PDM_Buffer, AUDIO_IN_BUFFER_SIZE);
+	WINKY_AUDIO_IN_Init(&MicParams);
+	WINKY_AUDIO_IN_Record((uint8_t *) PDM_Buffer, AUDIO_IN_BUFFER_SIZE);
 
 	sai_clk_feq = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SAI1);
 
@@ -74,7 +89,7 @@ int main(void)
 
 void AudioProcess(void)
 {
-	WINKY_AUDIO_IN_PDMToPCM(WINKY_AUDIO_INSTANCE,(uint16_t * )PDM_Buffer,PCM_Buffer);
+	WINKY_AUDIO_IN_PDMToPCM((uint16_t * )PDM_Buffer,PCM_Buffer);
 	Audio_to_UART_Blocking_Mode();
 }
 
