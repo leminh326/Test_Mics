@@ -88,110 +88,35 @@ static __IO uint32_t    RecBuffHalf             = 0;
 static __IO uint32_t    MicBuffIndex[4];
 
 extern UART_HandleTypeDef huart1;
+extern SAI_HandleTypeDef  hsai_BlockA1;
 
 __weak int32_t WINKY_AUDIO_IN_Init(uint32_t Instance, WINKY_AUDIO_Init_t* AudioInit)
 {
+  /* Store the audio record context */
+  AudioInCtx[Instance].Device          = AudioInit->Device;
+  AudioInCtx[Instance].ChannelsNbr     = AudioInit->ChannelsNbr;
+  AudioInCtx[Instance].SampleRate      = AudioInit->SampleRate;
+  AudioInCtx[Instance].BitsPerSample   = AudioInit->BitsPerSample;
+  AudioInCtx[Instance].Volume          = AudioInit->Volume;
+  AudioInCtx[Instance].State           = AUDIO_IN_STATE_RESET;
+
+  uint32_t PDM_Clock_Freq;
+
+  PDM_Clock_Freq = 384;
+  AudioInCtx[Instance].DecimationFactor = 24;
+
+  /* Double buffer for 1 microphone */
+  AudioInCtx[Instance].Size = (PDM_Clock_Freq/8U) * 2U * N_MS_PER_INTERRUPT;
+
+  if (AudioInCtx[Instance].ChannelsNbr == 1U)
+  {
+   AudioInCtx[Instance].Size *= 2U;
+  }
+
+  WINKY_AUDIO_IN_PDMToPCM_Init(Instance, AudioInCtx[0].SampleRate, AudioInCtx[0].ChannelsNbr, AudioInCtx[0].ChannelsNbr);
+  AudioInCtx[Instance].State = AUDIO_IN_STATE_STOP;
+
   int32_t ret =  BSP_ERROR_NONE;
-
-  if(Instance >= AUDIO_IN_INSTANCES_NBR)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
-  else
-  {
-    /* Store the audio record context */
-    AudioInCtx[Instance].Device          = AudioInit->Device;
-    AudioInCtx[Instance].ChannelsNbr     = AudioInit->ChannelsNbr;
-    AudioInCtx[Instance].SampleRate      = AudioInit->SampleRate;
-    AudioInCtx[Instance].BitsPerSample   = AudioInit->BitsPerSample;
-    AudioInCtx[Instance].Volume          = AudioInit->Volume;
-    AudioInCtx[Instance].State           = AUDIO_IN_STATE_RESET;
-
-    if(Instance == 0U)
-    {
-      uint32_t PDM_Clock_Freq;
-
-      //AudioInCtx[Instance].DecimationFactor = (PDM_Clock_Freq * 1000U)/AudioInit->SampleRate;
-      PDM_Clock_Freq = 384;
-      AudioInCtx[Instance].DecimationFactor = 24;
-
-      /* Double buffer for 1 microphone */
-      AudioInCtx[Instance].Size = (PDM_Clock_Freq/8U) * 2U * N_MS_PER_INTERRUPT;
-
-      if (AudioInCtx[Instance].ChannelsNbr == 1U)
-      {
-       AudioInCtx[Instance].Size *= 2U;
-      }
-
-      /* Initialize SAI */
-      __HAL_SAI_RESET_HANDLE_STATE(&hAudioInSai);
-
-      hAudioInSai.Instance = AUDIO_IN_SAI_INSTANCE;
-      __HAL_SAI_DISABLE(&hAudioInSai);
-
-      hAudioInSai.Init.Protocol = SAI_FREE_PROTOCOL;
-      hAudioInSai.Init.AudioMode  = SAI_MODEMASTER_RX;
-      hAudioInSai.Init.DataSize = SAI_DATASIZE_16;
-      hAudioInSai.Init.FirstBit       = SAI_FIRSTBIT_MSB;
-      hAudioInSai.Init.ClockStrobing  = SAI_CLOCKSTROBING_FALLINGEDGE;
-      hAudioInSai.Init.Synchro = SAI_ASYNCHRONOUS;
-      hAudioInSai.Init.OutputDrive = SAI_OUTPUTDRIVE_DISABLE;
-      hAudioInSai.Init.NoDivider = SAI_MASTERDIVIDER_DISABLE;
-      hAudioInSai.Init.MckOverSampling = SAI_MCK_OVERSAMPLING_DISABLE;
-      hAudioInSai.Init.FIFOThreshold = SAI_FIFOTHRESHOLD_EMPTY;
-      hAudioInSai.Init.SynchroExt = SAI_SYNCEXT_DISABLE;
-      hAudioInSai.Init.MonoStereoMode = SAI_STEREOMODE;
-      hAudioInSai.Init.CompandingMode = SAI_NOCOMPANDING;
-      hAudioInSai.Init.PdmInit.Activation = ENABLE;
-      hAudioInSai.Init.PdmInit.ClockEnable = SAI_PDM_CLOCK1_ENABLE;
-      if ( AudioInCtx[Instance].ChannelsNbr <= 2U)
-      {
-    	  hAudioInSai.FrameInit.FrameLength       = 16;
-    	  hAudioInSai.Init.PdmInit.MicPairsNbr = 1;
-    	  hAudioInSai.Init.AudioFrequency = ((PDM_Clock_Freq * 1000U) / hAudioInSai.FrameInit.FrameLength ) * 2U;
-      }
-      else
-      {
-    	  hAudioInSai.FrameInit.FrameLength       = 16;
-    	  hAudioInSai.Init.PdmInit.MicPairsNbr    = 2;
-    	  hAudioInSai.Init.AudioFrequency = ((PDM_Clock_Freq * 1000U) / hAudioInSai.FrameInit.FrameLength ) * 4U;
-      }
-
-      hAudioInSai.FrameInit.ActiveFrameLength = 1;
-      hAudioInSai.FrameInit.FSDefinition = SAI_FS_STARTFRAME;
-      hAudioInSai.FrameInit.FSPolarity        = SAI_FS_ACTIVE_HIGH;
-      hAudioInSai.FrameInit.FSOffset = SAI_FS_FIRSTBIT;
-      hAudioInSai.SlotInit.FirstBitOffset = 0;
-      hAudioInSai.SlotInit.SlotSize       = SAI_SLOTSIZE_DATASIZE;
-      hAudioInSai.SlotInit.SlotNumber     = 1;
-      hAudioInSai.SlotInit.SlotActive = 0x00000003;
-
-      if (HAL_SAI_Init(&hAudioInSai) != HAL_OK)
-      {
-        ret =  BSP_ERROR_PERIPH_FAILURE;
-      }
-
-      /* Enable SAI to generate clock used by audio driver */
-      __HAL_SAI_ENABLE(&hAudioInSai);
-
-      if (WINKY_AUDIO_IN_PDMToPCM_Init(Instance, AudioInCtx[0].SampleRate, AudioInCtx[0].ChannelsNbr, AudioInCtx[0].ChannelsNbr)!= BSP_ERROR_NONE)
-      {
-        ret =  BSP_ERROR_NO_INIT;
-      }
-    }
-    else if(Instance == 1U)
-    {
-      ret =  BSP_ERROR_WRONG_PARAM;
-    }
-    else /* Instance = 2 */
-    {
-
-    }
-
-    /* Update BSP AUDIO IN state */
-    AudioInCtx[Instance].State = AUDIO_IN_STATE_STOP;
-    /* Return BSP status */
-  }
   return ret;
 }
 
@@ -312,7 +237,7 @@ int32_t WINKY_AUDIO_IN_Record(uint32_t Instance, uint8_t* pBuf, uint32_t NbrOfBy
     {
       UNUSED(NbrOfBytes);
 
-      if(HAL_SAI_Receive_DMA(&hAudioInSai, (uint8_t *)SAI_InternalBuffer, (uint16_t)(AudioInCtx[Instance].Size/2U * AudioInCtx[Instance].ChannelsNbr)) != HAL_OK)
+      if(HAL_SAI_Receive_DMA(&hsai_BlockA1, (uint8_t *)SAI_InternalBuffer, (uint16_t)(AudioInCtx[Instance].Size/2U * AudioInCtx[Instance].ChannelsNbr)) != HAL_OK)
       {
         ret = BSP_ERROR_PERIPH_FAILURE;
       }

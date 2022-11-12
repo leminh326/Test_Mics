@@ -15,6 +15,7 @@ extern TIM_HandleTypeDef htim17;
 extern SAI_HandleTypeDef hAudioInSai;
 extern DMA_HandleTypeDef hAudioInSaiDmaRx;
 extern DMA_HandleTypeDef audio_codec_sai_dma_tx;
+extern SAI_HandleTypeDef  hsai_BlockA1;
 
 void NMI_Handler(void)
 {
@@ -165,8 +166,7 @@ void DMA1_Channel3_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel2_IRQn 0 */
 
   /* USER CODE END DMA1_Channel2_IRQn 0 */
-  //HAL_DMA_IRQHandler(&hAudioInSaiDmaRx);
-  HAL_DMA_IRQHandler(hAudioInSai.hdmarx);
+  HAL_DMA_IRQHandler(hsai_BlockA1.hdmarx);
   /* USER CODE BEGIN DMA1_Channel2_IRQn 1 */
 
   /* USER CODE END DMA1_Channel2_IRQn 1 */
