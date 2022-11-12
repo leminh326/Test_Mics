@@ -42,7 +42,7 @@ static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 static void Audio_to_UART_Blocking_Mode();
 static void Audio_to_UART_DMA_Mode();
-
+uint32_t sai_clk_feq = 0;
 int main(void)
 {
 	HAL_Init();
@@ -61,7 +61,7 @@ int main(void)
 	WINKY_AUDIO_IN_Init(WINKY_AUDIO_INSTANCE, &MicParams);
 	WINKY_AUDIO_IN_Record(WINKY_AUDIO_INSTANCE, (uint8_t *) PDM_Buffer, AUDIO_IN_BUFFER_SIZE);
 
-//	uint32_t sai_clk_feq = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SAI1);
+	sai_clk_feq = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SAI1);
 
 	/* Infinite loop */
 	while (1)
@@ -216,88 +216,70 @@ static void MX_GPIO_Init(void)
 }
 void SystemClock_Config(void)
 {
-	RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-	RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-	RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+	  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+	  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+	  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 
-	/** Macro to configure the PLL multiplication factor
-	 */
-	__HAL_RCC_PLL_PLLM_CONFIG(RCC_PLLM_DIV5);
-	/** Macro to configure the PLL clock source
-	 */
-	__HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
-	/** Configure LSE Drive Capability
-	 */
-	__HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_MEDIUMHIGH);
-	/** Configure the main internal regulator output voltage
-	 */
-	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-	/** Initializes the CPU, AHB and APB busses clocks
-	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSE
-			|RCC_OSCILLATORTYPE_LSE|RCC_OSCILLATORTYPE_MSI;
-	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-	RCC_OscInitStruct.LSEState = RCC_LSE_ON;
-	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-	RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-	RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-	RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
-	RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_10;
-	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-// AUDIOTODO
-	//	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-//	RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV8;
-//	RCC_OscInitStruct.PLL.PLLN = 32;
-//	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-//	RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-//	RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	/** Configure the SYSCLKSource, HCLK, PCLK1 and PCLK2 clocks dividers
-	 */
-	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK4|RCC_CLOCKTYPE_HCLK2
-			|RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-			|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSE;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-	RCC_ClkInitStruct.AHBCLK2Divider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.AHBCLK4Divider = RCC_SYSCLK_DIV1;
+	  /** Macro to configure the PLL multiplication factor
+	  */
+	  __HAL_RCC_PLL_PLLM_CONFIG(RCC_PLLM_DIV5);
+//	  __HAL_RCC_PLL_PLLM_CONFIG(RCC_PLLM_DIV8);
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	/** Initializes the peripherals clocks
-	 */
-	PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SMPS|RCC_PERIPHCLK_RFWAKEUP
-			|RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_USART1
-			|RCC_PERIPHCLK_I2C1| RCC_PERIPHCLK_SAI1
-			|RCC_PERIPHCLK_I2C1
-			|RCC_PERIPHCLK_I2C3|RCC_PERIPHCLK_ADC;
-	PeriphClkInitStruct.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
-	PeriphClkInitStruct.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
-	PeriphClkInitStruct.I2c3ClockSelection = RCC_I2C3CLKSOURCE_PCLK1;
-	// AUDIOTODO
-//	PeriphClkInitStruct.PLLSAI1.PLLN = 86;
-//	PeriphClkInitStruct.PLLSAI1.PLLP = RCC_PLLP_DIV7;
-//	PeriphClkInitStruct.PLLSAI1.PLLQ = RCC_PLLQ_DIV2;
-//	PeriphClkInitStruct.PLLSAI1.PLLR = RCC_PLLR_DIV2;
-	PeriphClkInitStruct.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_SAI1CLK;
-	PeriphClkInitStruct.Sai1ClockSelection = RCC_SAI1CLKSOURCE_PLLSAI1;
-	PeriphClkInitStruct.AdcClockSelection = RCC_ADCCLKSOURCE_PLLSAI1;
-	PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
-	PeriphClkInitStruct.RFWakeUpClockSelection = RCC_RFWKPCLKSOURCE_LSE;
-	PeriphClkInitStruct.SmpsClockSelection = RCC_SMPSCLKSOURCE_HSE;
-	PeriphClkInitStruct.SmpsDivSelection = RCC_SMPSCLKDIV_RANGE0;
 
-	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
-	{
-		Error_Handler();
-	}
+	  /** Macro to configure the PLL clock source
+	  */
+	  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
+	  /** Configure the main internal regulator output voltage
+	  */
+	  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+	  /** Initializes the RCC Oscillators according to the specified parameters
+	  * in the RCC_OscInitTypeDef structure.
+	  */
+	  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSE;
+	  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+	  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+	  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+	  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+	  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+	  /** Configure the SYSCLKSource, HCLK, PCLK1 and PCLK2 clocks dividers
+	  */
+	  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK4|RCC_CLOCKTYPE_HCLK2
+	                              |RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+	                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+	  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSE;
+	  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+	  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+	  RCC_ClkInitStruct.AHBCLK2Divider = RCC_SYSCLK_DIV1;
+	  RCC_ClkInitStruct.AHBCLK4Divider = RCC_SYSCLK_DIV1;
+
+	  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+	  /** Initializes the peripherals clocks
+	  */
+	  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SMPS|RCC_PERIPHCLK_USART1
+	                              |RCC_PERIPHCLK_SAI1;
+	  PeriphClkInitStruct.PLLSAI1.PLLN = 86;
+	  PeriphClkInitStruct.PLLSAI1.PLLP = RCC_PLLP_DIV7;
+	  PeriphClkInitStruct.PLLSAI1.PLLQ = RCC_PLLQ_DIV2;
+	  PeriphClkInitStruct.PLLSAI1.PLLR = RCC_PLLR_DIV2;
+	  PeriphClkInitStruct.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_SAI1CLK;
+	  PeriphClkInitStruct.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+	  PeriphClkInitStruct.Sai1ClockSelection = RCC_SAI1CLKSOURCE_PLLSAI1;
+	  PeriphClkInitStruct.SmpsClockSelection = RCC_SMPSCLKSOURCE_HSI;
+	  PeriphClkInitStruct.SmpsDivSelection = RCC_SMPSCLKDIV_RANGE1;
+	  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+	  /* USER CODE BEGIN Smps */
+
+	  /* USER CODE END Smps */
 }
 void Error_Handler(void)
 {

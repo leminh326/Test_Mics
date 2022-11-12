@@ -111,30 +111,6 @@ __weak int32_t WINKY_AUDIO_IN_Init(uint32_t Instance, WINKY_AUDIO_Init_t* AudioI
     {
       uint32_t PDM_Clock_Freq;
 
-      switch (AudioInit->SampleRate)
-      {
-      case AUDIO_FREQUENCY_8K:
-        PDM_Clock_Freq = 1280;
-        break;
-
-      case AUDIO_FREQUENCY_16K:
-        PDM_Clock_Freq = PDM_FREQ_16K;
-        break;
-
-      case AUDIO_FREQUENCY_32K:
-        PDM_Clock_Freq = 2048;
-        break;
-
-      case AUDIO_FREQUENCY_48K:
-        PDM_Clock_Freq = 3072;
-        break;
-
-      default:
-        PDM_Clock_Freq = 1280;
-        ret =  BSP_ERROR_WRONG_PARAM;
-        break;
-      }
-
       //AudioInCtx[Instance].DecimationFactor = (PDM_Clock_Freq * 1000U)/AudioInit->SampleRate;
       PDM_Clock_Freq = 384;
       AudioInCtx[Instance].DecimationFactor = 24;
@@ -149,12 +125,6 @@ __weak int32_t WINKY_AUDIO_IN_Init(uint32_t Instance, WINKY_AUDIO_Init_t* AudioI
 
       /* Initialize SAI */
       __HAL_SAI_RESET_HANDLE_STATE(&hAudioInSai);
-
-      /* PLL clock is set depending by the AudioFreq */
-      if(MX_SAI_ClockConfig(&hAudioInSai, PDM_Clock_Freq) != HAL_OK)
-      {
-        ret =  BSP_ERROR_CLOCK_FAILURE;
-      }
 
       hAudioInSai.Instance = AUDIO_IN_SAI_INSTANCE;
       __HAL_SAI_DISABLE(&hAudioInSai);
@@ -222,39 +192,6 @@ __weak int32_t WINKY_AUDIO_IN_Init(uint32_t Instance, WINKY_AUDIO_Init_t* AudioI
     AudioInCtx[Instance].State = AUDIO_IN_STATE_STOP;
     /* Return BSP status */
   }
-  return ret;
-}
-
-__weak HAL_StatusTypeDef MX_SAI_ClockConfig(SAI_HandleTypeDef *hSai, uint32_t PDM_rate)
-{
-  UNUSED(hSai);
-
-  HAL_StatusTypeDef ret = HAL_OK;
-  /*SAI PLL Configuration*/
-  RCC_PeriphCLKInitTypeDef rccclkinit;
-  HAL_RCCEx_GetPeriphCLKConfig(&rccclkinit);
-
-  if ((PDM_rate % 1280U) == 0U)
-  {
-    rccclkinit.PLLSAI1.PLLN = 82;
-    rccclkinit.PLLSAI1.PLLP = RCC_PLLP_DIV8;
-  }
-  else
-  {
-    rccclkinit.PLLSAI1.PLLN = 86;
-    rccclkinit.PLLSAI1.PLLP = RCC_PLLP_DIV7;
-  }
-//  rccclkinit.PLLSAI1.PLLQ 		= RCC_PLLQ_DIV2;
-//  rccclkinit.PLLSAI1.PLLR 		= RCC_PLLR_DIV2;
-//  rccclkinit.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_SAI1CLK;
-//  rccclkinit.Sai1ClockSelection      = RCC_SAI1CLKSOURCE_PLLSAI1;
-  rccclkinit.PeriphClockSelection = RCC_PERIPHCLK_SAI1;
-
-  if(HAL_RCCEx_PeriphCLKConfig(&rccclkinit) != HAL_OK)
-  {
-    ret = HAL_ERROR;
-  }
-
   return ret;
 }
 
