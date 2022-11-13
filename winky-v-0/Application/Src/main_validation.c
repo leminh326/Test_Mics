@@ -9,29 +9,31 @@
 
 #include "pdm2pcm_glo.h"
 
-void SystemClock_Config(void);
-void HAL_UART_MspInit2(UART_HandleTypeDef* huart);
-
-/*Number of millisecond of audio at each DMA interrupt*/
-#define N_MS_PER_INTERRUPT               (1U)
-#define AUDIO_IN_CHANNELS 				 4
-#define AUDIO_IN_SAMPLING_FREQUENCY 	 16000
-#define MAX_DECIMATION_FACTOR 			 128
-#define AUDIO_IN_BUFFER_SIZE             DEFAULT_AUDIO_IN_BUFFER_SIZE
-
-uint16_t PDM_Buffer[512];
-uint16_t PCM_Buffer[64];
-
 SAI_HandleTypeDef  hsai_BlockA1;
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef  hdma_usart1_tx;
 DMA_HandleTypeDef  hdma_usart1_rx;
 DMA_HandleTypeDef  hdma_sai1_a;
 
-PDM_Filter_Handler_t m_PDM_filter[4];
-PDM_Filter_Config_t m_PDM_Filter_Config;
-uint16_t m_PdmBuffer[1536];
+void SystemClock_Config(void);
+void HAL_UART_MspInit2(UART_HandleTypeDef* huart);
 
+/*We fix DMA interrupt for each 1ms*/
+#define N_MS_PER_INTERRUPT               (1U)
+#define NUMBER_OF_MICROPHONE 			 4
+#define AUDIO_IN_SAMPLING_FREQUENCY 	 16000
+#define DECIMATION_FACTOR 			     24
+#define MIC_GAIN 			     		 24
+#define PCM_BUFFER_SIZE 			     AUDIO_IN_SAMPLING_FREQUENCY * NUMBER_OF_MICROPHONE / 1000
+#define PDM_BUFFER_SIZE 			     PCM_BUFFER_SIZE * DECIMATION_FACTOR / 16
+#define SAI_BUFFER_SIZE 			     PDM_BUFFER_SIZE*2
+
+uint16_t m_PCM_Buffer[PCM_BUFFER_SIZE];
+uint16_t m_PDM_Buffer[PDM_BUFFER_SIZE];
+uint16_t m_SaiBuffer[SAI_BUFFER_SIZE];
+
+PDM_Filter_Handler_t m_PDM_filter[NUMBER_OF_MICROPHONE];
+PDM_Filter_Config_t m_PDM_Filter_Config;
 
 void AudioProcess(void);
 
@@ -45,7 +47,7 @@ static void MX_SAI1_Init(void);
 static void Start_Record();
 static void MicFilterInit();
 
-uint32_t sai_clk_feq = 0;
+uint32_t sai_clk_feq = 0; // for test
 int main(void)
 {
 	HAL_Init();
@@ -59,7 +61,7 @@ int main(void)
 	MicFilterInit();
 	Start_Record();
 
-	sai_clk_feq = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SAI1);
+	sai_clk_feq = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SAI1); // for test
 
 	/* Infinite loop */
 	while (1)
@@ -68,14 +70,24 @@ int main(void)
 	}
 }
 
+void AudioProcess(void)
+{
+	for(int index = 0; index < 4; index++)
+	{
+		(void)PDM_Filter(&((uint8_t*)(m_PDM_Buffer))[index], (uint16_t*)&(m_PCM_Buffer[index]), &m_PDM_filter[index]);
+	}
+
+	Audio_to_UART_Blocking_Mode();
+}
+
 void HAL_SAI_RxCpltCallback(SAI_HandleTypeDef *hSai)
 {
 	uint32_t index;
 
-	uint8_t * DataTempSAI = &(((uint8_t *)m_PdmBuffer)[192]) ;
-	for(index = 0; index < 192 ; index++)
+	uint8_t * DataTempSAI = &(((uint8_t *)m_SaiBuffer)[SAI_BUFFER_SIZE]) ;
+	for(index = 0; index < SAI_BUFFER_SIZE ; index++)
 	{
-		((uint8_t *)(PDM_Buffer))[index] = (DataTempSAI[index]);
+		((uint8_t *)(m_PDM_Buffer))[index] = (DataTempSAI[index]);
 	}
 	AudioProcess();
 }
@@ -84,17 +96,17 @@ void HAL_SAI_RxHalfCpltCallback(SAI_HandleTypeDef *hSai)
 {
 	uint32_t index;
 
-	uint8_t * DataTempSAI = (uint8_t *)m_PdmBuffer;
-	for(index = 0; index < 192; index++)
+	uint8_t * DataTempSAI = (uint8_t *)m_SaiBuffer;
+	for(index = 0; index < SAI_BUFFER_SIZE; index++)
 	{
-		((uint8_t *)(PDM_Buffer))[index] = (DataTempSAI[index]);
+		((uint8_t *)(m_PDM_Buffer))[index] = (DataTempSAI[index]);
 	}
 	AudioProcess();
 }
 
 static void Start_Record()
 {
-	HAL_SAI_Receive_DMA(&hsai_BlockA1, (uint8_t *)m_PdmBuffer, 192);
+	HAL_SAI_Receive_DMA(&hsai_BlockA1, (uint8_t *)m_SaiBuffer, SAI_BUFFER_SIZE);
 }
 
 static void MicFilterInit()
@@ -103,31 +115,83 @@ static void MicFilterInit()
 	__HAL_RCC_CRC_CLK_ENABLE();
 
     m_PDM_Filter_Config.decimation_factor     = PDM_FILTER_DEC_FACTOR_24;
-    m_PDM_Filter_Config.output_samples_number = 16;
-    m_PDM_Filter_Config.mic_gain              = 24;
+    m_PDM_Filter_Config.output_samples_number = AUDIO_IN_SAMPLING_FREQUENCY/1000;
+    m_PDM_Filter_Config.mic_gain              = MIC_GAIN;
 
     for(int index = 0; index < 4; index++)
     {
       /* Init PDM filters */
-      m_PDM_filter[index].bit_order  = PDM_FILTER_BIT_ORDER_LSB;
-      m_PDM_filter[index].endianness = PDM_FILTER_ENDIANNESS_LE;
-      m_PDM_filter[index].high_pass_tap = 2122358088;
-      m_PDM_filter[index].out_ptr_channels = 4;
-      m_PDM_filter[index].in_ptr_channels  = 4;
+      m_PDM_filter[index].bit_order  	   = PDM_FILTER_BIT_ORDER_LSB;
+      m_PDM_filter[index].endianness 	   = PDM_FILTER_ENDIANNESS_LE;
+      m_PDM_filter[index].high_pass_tap    = 2122358088;
+      m_PDM_filter[index].out_ptr_channels = NUMBER_OF_MICROPHONE;
+      m_PDM_filter[index].in_ptr_channels  = NUMBER_OF_MICROPHONE;
 
       PDM_Filter_Init((PDM_Filter_Handler_t *)(&m_PDM_filter[index]));
       PDM_Filter_setConfig((PDM_Filter_Handler_t *)&m_PDM_filter[index], &m_PDM_Filter_Config);
     }
 }
 
-void AudioProcess(void)
+static void Audio_to_UART_Blocking_Mode()
 {
-	for(int index = 0; index < 4; index++)
-	{
-		(void)PDM_Filter(&((uint8_t*)(PDM_Buffer))[index], (uint16_t*)&(PCM_Buffer[index]), &m_PDM_filter[index]);
-	}
+	// *************** Blocking Mode *************** //
+	static uint8_t counter = 0;
+	static uint8_t header[] = { 'a', 'b', 'c', 0 };
+	header[3] = counter++;
+	static uint16_t aPCMBufferOUT[AUDIO_IN_SAMPLING_FREQUENCY/1000];
+	uint32_t sum1 = 0, sum2 = 0, sum3 = 0, sum4 = 0;
 
-	Audio_to_UART_Blocking_Mode();
+    for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
+    {
+        aPCMBufferOUT[i] = m_PCM_Buffer[NUMBER_OF_MICROPHONE * i];
+        sum1 +=aPCMBufferOUT[i];
+    }
+	HAL_UART_Transmit(&huart1, header, sizeof(header), 500);
+	HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500); // Left
+
+    for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
+    {
+        aPCMBufferOUT[i] = m_PCM_Buffer[NUMBER_OF_MICROPHONE * i + 1];
+        sum2 +=aPCMBufferOUT[i];
+    }
+
+//    HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500);
+
+    for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
+    {
+        aPCMBufferOUT[i] = m_PCM_Buffer[NUMBER_OF_MICROPHONE * i +2];
+        sum3 +=aPCMBufferOUT[i];
+    }
+    HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500); // Front
+
+    for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
+    {
+        aPCMBufferOUT[i] = m_PCM_Buffer[NUMBER_OF_MICROPHONE * i + 3];
+        sum4 +=aPCMBufferOUT[i];
+    }
+    HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500); // Right
+}
+static void Audio_to_UART_DMA_Mode()
+{
+	// *************** DMA Mode *************** //
+	static uint8_t counter = 0;
+	static uint8_t header[] = { 'a', 'b', 'c', 0 };
+	header[3] = counter++;
+	static uint16_t aPCMBufferOUT[AUDIO_IN_SAMPLING_FREQUENCY/1000 * NUMBER_OF_MICROPHONE];
+
+	for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
+	{
+		aPCMBufferOUT[i] = m_PCM_Buffer[NUMBER_OF_MICROPHONE * i];
+		aPCMBufferOUT[i+16] = m_PCM_Buffer[NUMBER_OF_MICROPHONE * i + 1];
+		aPCMBufferOUT[i+32] = m_PCM_Buffer[NUMBER_OF_MICROPHONE * i + 2];
+		aPCMBufferOUT[i+48] = m_PCM_Buffer[NUMBER_OF_MICROPHONE * i + 3];
+	}
+	uint16_t BufferOUT [66];
+	memcpy(BufferOUT, header, 4 * sizeof(uint8_t));
+	memcpy(BufferOUT + 2, aPCMBufferOUT, 64 * sizeof(uint16_t));
+
+	HAL_UART_Transmit(&huart1, BufferOUT, 2 + NUMBER_OF_MICROPHONE * (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t),100);
+//	HAL_UART_Transmit_DMA(&huart1, BufferOUT, 2 + NUMBER_OF_MICROPHONE * (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t));
 }
 
 static void MX_SAI1_Init(void)
@@ -178,70 +242,6 @@ static void MX_SAI1_Init(void)
 	/* USER CODE END SAI1_Init 2 */
 
 }
-
-static void Audio_to_UART_Blocking_Mode()
-{
-	// *************** Blocking Mode *************** //
-	static uint8_t counter = 0;
-	static uint8_t header[] = { 'a', 'b', 'c', 0 };
-	header[3] = counter++;
-	static uint16_t aPCMBufferOUT[AUDIO_IN_SAMPLING_FREQUENCY/1000];
-	uint32_t sum1 = 0, sum2 = 0, sum3 = 0, sum4 = 0;
-
-    for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
-    {
-        aPCMBufferOUT[i] = PCM_Buffer[AUDIO_IN_CHANNELS * i];
-        sum1 +=aPCMBufferOUT[i];
-    }
-	HAL_UART_Transmit(&huart1, header, sizeof(header), 500);
-	HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500); // Left
-
-    for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
-    {
-        aPCMBufferOUT[i] = PCM_Buffer[AUDIO_IN_CHANNELS * i + 1];
-        sum2 +=aPCMBufferOUT[i];
-    }
-
-//    HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500);
-
-    for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
-    {
-        aPCMBufferOUT[i] = PCM_Buffer[AUDIO_IN_CHANNELS * i +2];
-        sum3 +=aPCMBufferOUT[i];
-    }
-    HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500); // Front
-
-    for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
-    {
-        aPCMBufferOUT[i] = PCM_Buffer[AUDIO_IN_CHANNELS * i + 3];
-        sum4 +=aPCMBufferOUT[i];
-    }
-    HAL_UART_Transmit(&huart1, aPCMBufferOUT, (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t), 500); // Right
-}
-
-static void Audio_to_UART_DMA_Mode()
-{
-	// *************** DMA Mode *************** //
-	static uint8_t counter = 0;
-	static uint8_t header[] = { 'a', 'b', 'c', 0 };
-	header[3] = counter++;
-	static uint16_t aPCMBufferOUT[AUDIO_IN_SAMPLING_FREQUENCY/1000 * AUDIO_IN_CHANNELS];
-
-	for(int i = 0; i < AUDIO_IN_SAMPLING_FREQUENCY / 1000; i++)
-	{
-		aPCMBufferOUT[i] = PCM_Buffer[AUDIO_IN_CHANNELS * i];
-		aPCMBufferOUT[i+16] = PCM_Buffer[AUDIO_IN_CHANNELS * i + 1];
-		aPCMBufferOUT[i+32] = PCM_Buffer[AUDIO_IN_CHANNELS * i + 2];
-		aPCMBufferOUT[i+48] = PCM_Buffer[AUDIO_IN_CHANNELS * i + 3];
-	}
-	uint16_t BufferOUT [66];
-	memcpy(BufferOUT, header, 4 * sizeof(uint8_t));
-	memcpy(BufferOUT + 2, aPCMBufferOUT, 64 * sizeof(uint16_t));
-
-	HAL_UART_Transmit(&huart1, BufferOUT, 2 + AUDIO_IN_CHANNELS * (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t),100);
-//	HAL_UART_Transmit_DMA(&huart1, BufferOUT, 2 + AUDIO_IN_CHANNELS * (AUDIO_IN_SAMPLING_FREQUENCY/1000) * N_MS_PER_INTERRUPT * sizeof(int16_t));
-}
-
 static void MX_USART1_UART_Init(void)
 {
 
@@ -380,8 +380,5 @@ void SystemClock_Config(void)
 }
 void Error_Handler(void)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
 
-  /* USER CODE END Error_Handler_Debug */
 }
